@@ -16,15 +16,13 @@ import (
 )
 
 var checkUUID string
-var tee bool
 var runEvery time.Duration
-var noStart bool
-var noOutput bool
+var tee, noStart, noOutput bool
 
 func initFlags() {
 	flag.StringVar(&checkUUID, "check", "", "UUID of check")
-	flag.BoolVar(&tee, "tee", false, "Passthrough stdout and stderr")
 	flag.DurationVar(&runEvery, "every", 0, "Run the command periodically every N time unit")
+	flag.BoolVar(&tee, "tee", false, "Passthrough stdout and stderr")
 	flag.BoolVar(&noStart, "nostart", false, "Do not send start ping")
 	flag.BoolVar(&noOutput, "nooutput", false, "Do not attach stdout and stderr to pings")
 
