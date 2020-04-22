@@ -53,6 +53,9 @@ func main() {
 	task := func() (int, error) { return runOnce(chk, flag.Args()) }
 
 	if runEvery > 0 {
+		// Run the task for the first time
+		task()
+
 		sigC := make(chan os.Signal, 1)
 		signal.Notify(sigC, syscall.SIGALRM)
 		ticker := time.NewTicker(runEvery)
