@@ -1,4 +1,4 @@
-package api
+package healthchecks
 
 import (
 	"fmt"
@@ -19,10 +19,10 @@ var DefaultAPIClient = &APIClient{
 	HTTPClient: http.DefaultClient,
 }
 
-type PingType string
+type pingType string
 
 const (
-	Success PingType = ""
+	Success pingType = ""
 	Failure          = "/fail"
 	Start            = "/start"
 )
@@ -32,17 +32,11 @@ type Check struct {
 	APIClient *APIClient
 }
 
-func NewCheck(UUID string) *Check {
+func NewPinger(UUID string) *Check {
 	return &Check{
 		UUID:      UUID,
 		APIClient: DefaultAPIClient,
 	}
-}
-
-type Pinger interface {
-	PingStart(io.Reader) bool
-	PingSuccess(io.Reader) bool
-	PingFailure(io.Reader) bool
 }
 
 func (c *Check) PingStart(body io.Reader) bool {
@@ -57,7 +51,7 @@ func (c *Check) PingFailure(body io.Reader) bool {
 	return c.ping(Failure, body)
 }
 
-func (c *Check) ping(t PingType, body io.Reader) (ok bool) {
+func (c *Check) ping(t pingType, body io.Reader) (ok bool) {
 	url := fmt.Sprintf("%s/%s%s", c.APIClient.BaseURL, c.UUID, string(t))
 	res, err := c.APIClient.HTTPClient.Post(url, "text/plain", body)
 	if err != nil {
