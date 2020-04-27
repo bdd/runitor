@@ -1,9 +1,21 @@
 package api
 
-import "io"
+import (
+	"fmt"
+	"io"
+)
 
 type Pinger interface {
-	PingStart(io.Reader) bool
-	PingSuccess(io.Reader) bool
-	PingFailure(io.Reader) bool
+	PingStart(string, io.Reader) error
+	PingSuccess(string, io.Reader) error
+	PingFailure(string, io.Reader) error
+}
+
+type PingError struct {
+	Type string // start, success, failure
+	Err  error
+}
+
+func (e *PingError) Error() string {
+	return fmt.Sprintf("%s", e.Err.Error())
 }

@@ -7,6 +7,8 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -17,6 +19,7 @@ import (
 	"github.com/bdd/hcpingrun/pkg/api/healthchecks"
 )
 
+// RunConfig sets the behavior of a Run
 type RunConfig struct {
 	Quiet          bool // Don't tee command stdout to stdout
 	QuietErrors    bool // Don't tee command stderr to stderr
@@ -26,7 +29,10 @@ type RunConfig struct {
 
 func main() {
 	var (
-		check          = flag.String("check", "", "UUID of check")
+		apiURL         = flag.String("api-url", healthchecks.DefaultBaseURL, "API URL Base of Healthchecks instance")
+		apiTries       = flag.Int("api-tries", healthchecks.DefaultMaxTries, "Number of times an API request will be tried for transient errors.")
+		apiTimeout     = flag.Duration("api-timeout", healthchecks.DefaultTimeout, "Client timeout for a single API request")
+		uuid           = flag.String("uuid", "", "UUID of check")
 		every          = flag.Duration("every", 0, "Run the command periodically at specified interval")
 		quiet          = flag.Bool("quiet", false, "Don't relay stdout of command to terminal")
 		silent         = flag.Bool("silent", false, "Don't relay  stdout and stderr of command to terminal")
@@ -35,12 +41,12 @@ func main() {
 	)
 	flag.Parse()
 
-	if len(*check) == 0 {
-		v, ok := os.LookupEnv("HCIO_CHECK")
-		if !ok {
-			log.Fatal("Must pass check UUID either with '-check UUID' param or HCIO_CHECK environment variable")
+	if len(*uuid) == 0 {
+		v, ok := os.LookupEnv("CHECK_UUID")
+		if !ok || len(v) == 0 {
+			log.Fatal("Must pass check UUID either with '-uuid UUID' param or CHECK_UUID environment variable")
 		}
-		check = &v
+		uuid = &v
 	}
 
 	if flag.NArg() < 1 {
@@ -48,20 +54,34 @@ func main() {
 	}
 
 	command := flag.Args()
-	pinger := healthchecks.NewPinger(*check)
+	pinger := &healthchecks.APIClient{
+		BaseURL:  *apiURL,
+		MaxTries: int(math.Max(1, float64(*apiTries))), // has to be >=1
+		Client:   &http.Client{Timeout: *apiTimeout},
+	}
+
+	runConfig := RunConfig{
+		Quiet:          *quiet || *silent,
+		QuietErrors:    *silent,
+		NoStartPing:    *noStartPing,
+		NoOutputInPing: *noOutputInPing,
+	}
 
 	task := func() (int, error) {
-		return Run(command, pinger, RunConfig{
-			Quiet:          *quiet || *silent,
-			QuietErrors:    *silent,
-			NoStartPing:    *noStartPing,
-			NoOutputInPing: *noOutputInPing,
-		})
+		return Run(command, *uuid, pinger, runConfig)
 	}
 
 	if *every == 0 {
-		exitCode, _ := task()
-		os.Exit(exitCode)
+		exitCode, err := task()
+		if err == nil {
+			os.Exit(exitCode)
+		}
+
+		v, ok := err.(*api.PingError)
+		if ok {
+			log.Fatal("Ping Error: ", v)
+		}
+		log.Fatal("Command execution error: ", err)
 	}
 
 	task()
@@ -79,7 +99,9 @@ func main() {
 	}
 }
 
-func Run(cmd []string, p api.Pinger, cfg RunConfig) (exitCode int, err error) {
+// Run function executes cmd[0] with parameters cmd[1:].
+// Pinger is used to signal start, success, or failure of execution.
+func Run(cmd []string, uuid string, p api.Pinger, cfg RunConfig) (exitCode int, err error) {
 	body := io.ReadWriter(new(bytes.Buffer))
 
 	var stdoutWriter, stderrWriter, bodyWriter io.Writer = os.Stdout, os.Stderr, body
@@ -98,22 +120,27 @@ func Run(cmd []string, p api.Pinger, cfg RunConfig) (exitCode int, err error) {
 	c.Stderr = io.MultiWriter(stderrWriter, bodyWriter)
 
 	if !cfg.NoStartPing {
-		p.PingStart(body)
+		if err := p.PingStart(uuid, body); err != nil {
+			log.Print("Error trying to ping (start): ", err)
+		}
 	}
 	err = c.Run()
 	if err != nil {
 		v, ok := err.(*exec.ExitError)
 		if !ok {
-			log.Fatal(err)
+			return
 		}
 		exitCode = v.ProcessState.ExitCode()
 		fmt.Fprintf(body, "Command exited with code %d\n", exitCode)
 	}
 
 	if exitCode == 0 {
-		p.PingSuccess(body)
+		err = p.PingSuccess(uuid, body)
 	} else {
-		p.PingFailure(body)
+		err = p.PingFailure(uuid, body)
+	}
+	if err != nil {
+		log.Print("Error trying to ping (success/failure): ", err)
 	}
 
 	return

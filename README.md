@@ -12,7 +12,7 @@ when they were expected to or fail.
 ### Certificate renewal
 
 ```
-% hcpingrun --check <check-uuid> -- dehydrated --cron --config example.com.conf
+% hcpingrun -uuid <check-uuid> -- dehydrated --cron --config example.com.conf
 ```
 
 ### Mirror Git Repositories
@@ -20,7 +20,7 @@ when they were expected to or fail.
 ```
 # Run the mirror script every 30 minutes 5 seconds.
 
-% hcpingrun --check <check-uuid> -every 30m5s -- /script/git-mirror
+% hcpingrun -uuid <check-uuid> -every 30m5s -- /script/git-mirror
 ```
 
 ### Periodic Backup
@@ -28,7 +28,17 @@ when they were expected to or fail.
 ```
 # Do not attach output to ping. Backup software may leak filenames and paths.
 
-% hcpingrun --check <check-uuid> -nooutput -- restic backup /home /etc
+% hcpingrun -uuid <check-uuid> -no-output-in-ping -- restic backup /home /etc
+```
+
+### Don't wait until the end of period, run now
+When invoked with `-every <duration>` argument, `hcpingrun` will act as a
+process manager and lo-fi scheduler. Sometimes you don't want to kill the
+process or container to force an immediate run. For thatm you can send SIGALRM
+to `hcpingrun` to trigger an immediate run of the command.
+
+```
+% pkill -ALRM hcpingrun
 ```
 
 ## Why do I need this? I can just run curl from my shell script.
