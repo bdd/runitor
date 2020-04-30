@@ -1,4 +1,4 @@
-# runitor
+/*
 
 `runitor` runs the supplied command, captures its output, and based on its exit
 code reports successful or failed execution to https://healthchecks.io.
@@ -7,15 +7,15 @@ Healthchecks.io is a web service for monitoring periodic tasks. It's like a
 dead man's switch for your cron jobs. You get alerted if they don't run on time
 or terminate with a failure.
 
-## Install:
+Install:
 
 	go get bdd.fi/x/runitor/cmd/runitor
 
-## Usage:
+Usage:
 
 	runitor -uuid uuid -- command
 
-### The flags are:
+The flags are:
 
 	-api-url="https://hc-ping.com"
 		API Base URL.  Defaults to healthchecks.io hosted service one.
@@ -37,7 +37,7 @@ or terminate with a failure.
 		Don't send stdout and stderr with pings
 
 
-## "Why do I need this? I can just run curl from my shell script."
+"Why do I need this? I can just run curl from my shell script."
 
 You sure can but `runitor` offers a clean separation of concerns from the thing
 that needs to run and signalling its execution to an external monitoring
@@ -57,20 +57,20 @@ It also offers a few neat extra features.
   per container environments.
 
 
-## Example Use:
+Example Use:
 
-### Certificate Renewal
+Certificate Renewal
 
 	runitor -uuid <check-uuid> -- dehydrated --cron --config example.com.conf
 
 
-### Mirror Git Repositories
+Mirror Git Repositories
 
 	# Run the mirror script every 30 minutes 5 seconds.
 	runitor -uuid <check-uuid> -every 30m5s -- /script/git-mirror
 
 
-### Periodic Backup
+Periodic Backup
 
 	# Do not attach output to ping.
 	# Backup software may leak filenames and paths.
@@ -78,7 +78,7 @@ It also offers a few neat extra features.
 	runitor -uuid <check-uuid> -no-output-in-ping -- restic backup /home /etc
 
 
-### Triggering an immediate run in periodic mode
+Triggering an immediate run in periodic mode
 
 When invoked with `-every <duration>` argument, `runitor` will act as a
 a lo-fi process manager and scheduler. Sometimes you may not want to restart the
@@ -89,7 +89,7 @@ timer.
 	pkill -ALRM runitor
 
 
-## "Remind me again, what is this healthchecks.io service?"
+"Remind me again, what is this healthchecks.io service?"
 
 * healthchecks.io listens for HTTP requests--"pings" from services being
   monitored.
@@ -103,4 +103,6 @@ timer.
 * Software behind the service is open source. You can run your own instance if
   you'd like to.
 
+*/
 
+package main
