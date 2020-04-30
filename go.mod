@@ -1,3 +1,3 @@
-module github.com/bdd/hcpingrun
+module bdd.fi/x/runitor
 
-go 1.13
+go 1.14

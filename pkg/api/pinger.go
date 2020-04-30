@@ -1,4 +1,4 @@
-package api
+package api // import "bdd.fi/x/runitor/pkg/api"
 
 import (
 	"fmt"

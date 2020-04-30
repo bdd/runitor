@@ -1,4 +1,4 @@
-package healthchecks
+package healthchecks // import "bdd.fi/x/runitor/pkg/api/healthchecks"
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/bdd/hcpingrun/pkg/api"
+	"bdd.fi/x/runitor/pkg/api"
 )
 
 // APIClient holds API endpoint address and client behavior configuration

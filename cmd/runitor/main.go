@@ -15,8 +15,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bdd/hcpingrun/pkg/api"
-	"github.com/bdd/hcpingrun/pkg/api/healthchecks"
+	"bdd.fi/x/runitor/pkg/api"
+	"bdd.fi/x/runitor/pkg/api/healthchecks"
 )
 
 // RunConfig sets the behavior of a Run
@@ -94,6 +94,8 @@ func main() {
 		case <-ticker.C:
 			task()
 		case <-runNow:
+			ticker.Stop()
+			ticker = time.NewTicker(*every)
 			task()
 		}
 	}
