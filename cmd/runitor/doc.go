@@ -18,15 +18,15 @@ Usage:
 The flags are:
 
 	-api-url="https://hc-ping.com"
-		API Base URL.  Defaults to healthchecks.io hosted service one.
+		API base URL. Defaults to healthchecks.io hosted service one
 	-api-tries=3
 		Number of times an API request will be attempted
 	-api-timeout="5s"
 		Client timeout per request
 	-uuid=""
-		UUID of check. Takes precedence over CHECK_UUID env var.
+		UUID of check. Takes precedence over CHECK_UUID env var
 	-every="0s"
-		When non-zero, peiodically run command at specified interval.
+		When non-zero periodically run command at specified interval
 	-quiet=false
 		Don't tee stdout of the command to terminal
 	-silent=false

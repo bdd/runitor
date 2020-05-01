@@ -29,13 +29,13 @@ type RunConfig struct {
 
 func main() {
 	var (
-		apiURL         = flag.String("api-url", healthchecks.DefaultBaseURL, "API URL Base of Healthchecks instance")
-		apiTries       = flag.Int("api-tries", healthchecks.DefaultMaxTries, "Number of times an API request will be tried for transient errors.")
-		apiTimeout     = flag.Duration("api-timeout", healthchecks.DefaultTimeout, "Client timeout for a single API request")
-		uuid           = flag.String("uuid", "", "UUID of check")
-		every          = flag.Duration("every", 0, "Run the command periodically at specified interval")
-		quiet          = flag.Bool("quiet", false, "Don't relay stdout of command to terminal")
-		silent         = flag.Bool("silent", false, "Don't relay  stdout and stderr of command to terminal")
+		apiURL         = flag.String("api-url", healthchecks.DefaultBaseURL, "API base URL. Defaults to healthchecks.io hosted service one.")
+		apiTries       = flag.Int("api-tries", healthchecks.DefaultMaxTries, "Number of times an API request will be attempted")
+		apiTimeout     = flag.Duration("api-timeout", healthchecks.DefaultTimeout, "Client timeout per request")
+		uuid           = flag.String("uuid", "", "UUID of check. Takes precedence over CHECK_UUID env var")
+		every          = flag.Duration("every", 0, "When non-zero periodically run command at specified interval")
+		quiet          = flag.Bool("quiet", false, "Don't tee stdout of the command to terminal")
+		silent         = flag.Bool("silent", false, "Don't tee stout and stderr of the command to terminal")
 		noStartPing    = flag.Bool("no-start-ping", false, "Don't send start ping")
 		noOutputInPing = flag.Bool("no-output-in-ping", false, "Don't send stdout and stderr with pings")
 	)
