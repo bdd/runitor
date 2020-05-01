@@ -104,5 +104,4 @@ timer.
   you'd like to.
 
 */
-
-package main
+package main // import "bdd.fi/x/runitor/cmd/runitor"

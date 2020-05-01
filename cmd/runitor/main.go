@@ -1,4 +1,4 @@
-package main
+package main // import "bdd.fi/x/runitor/cmd/runitor"
 
 import (
 	"bytes"
