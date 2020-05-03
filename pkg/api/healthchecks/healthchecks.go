@@ -25,6 +25,42 @@ type APIClient struct {
 	*http.Client
 }
 
+// Post wraps embedded http.Client's Post to implement simple retry logic.
+//
+// The implementation is inspired from Curl's. Request timeouts and temporary
+// network level errors will be retried. Responses with status codes 408 and
+// 5XX are also retried. Unlike Curl's, the backoff implementation is linear
+// instead of exponential. First retry waits for 1 second, second one waits for
+// 2 seconds, and so on.
+func (c *APIClient) Post(_url, contentType string, body io.Reader) (resp *http.Response, err error) {
+	tries := 0
+Try:
+	// Linear backoff at second granularity
+	time.Sleep(time.Duration(tries) * time.Second)
+	if tries++; tries >= c.MaxTries {
+		err = fmt.Errorf("max tries (%d) reached", c.MaxTries)
+		return
+	}
+	resp, err = c.Client.Post(_url, contentType, body)
+	if err != nil {
+		// Retry timeout and temporary kind of errors
+		if v, ok := err.(*url.Error); ok && (v.Timeout() || v.Temporary()) {
+			goto Try
+		}
+		return // non-recoverable
+	}
+
+	switch {
+	case resp.StatusCode == 200:
+		return
+	case resp.StatusCode == 408 || (resp.StatusCode >= 500 && resp.StatusCode <= 599):
+		goto Try
+	default:
+		err = fmt.Errorf("nonretrieable API response: %s", resp.Status)
+		return
+	}
+}
+
 const (
 	// Default Healthchecks API address
 	DefaultBaseURL = "https://hc-ping.com"
@@ -49,48 +85,31 @@ const (
 	start            = "/start"
 )
 
+// PingStart sends a Start Ping for the check with passed UUID and attaches
+// body as the logged context.
 func (c *APIClient) PingStart(UUID string, body io.Reader) error {
 	return c.ping(UUID, body, start)
 }
 
+// PingSuccess sends a Success Ping for the check with passed UUID and attaches
+// body as the logged context.
 func (c *APIClient) PingSuccess(UUID string, body io.Reader) error {
 	return c.ping(UUID, body, success)
 }
 
+// PingFailure sends a Fail Ping for the check with passed UUID and attaches
+// body as the logged context.
 func (c *APIClient) PingFailure(UUID string, body io.Reader) error {
 	return c.ping(UUID, body, failure)
 }
 
 func (c *APIClient) ping(UUID string, body io.Reader, t pingType) error {
-	apiURL := fmt.Sprintf("%s/%s%s", c.BaseURL, UUID, string(t))
-	tries := 0
-Try:
-	// Linear backoff at second granularity
-	time.Sleep(time.Duration(tries) * time.Second)
-	if tries++; tries >= c.MaxTries {
-		return &api.PingError{
-			Type: string(t),
-			Err:  fmt.Errorf("max tries (%d) reached", c.MaxTries),
-		}
-	}
-	res, err := c.Post(apiURL, "text/plain", body)
+	u := fmt.Sprintf("%s/%s%s", c.BaseURL, UUID, string(t))
+
+	_, err := c.Post(u, "text/plain", body)
 	if err != nil {
-		// Retry timeout and temporary kind of errors
-		if v, ok := err.(*url.Error); ok && (v.Timeout() || v.Temporary()) {
-			goto Try
-		}
-		return err // non-recoverable
+		return &api.PingError{Type: string(t), Err: err}
 	}
 
-	switch {
-	case res.StatusCode == 200:
-		return nil
-	case res.StatusCode == 408 || res.StatusCode >= 500:
-		goto Try
-	default:
-		return &api.PingError{
-			Type: string(t),
-			Err:  fmt.Errorf("nonretrieable API response: %s", res.Status),
-		}
-	}
+	return nil
 }
