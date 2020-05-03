@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
@@ -53,42 +52,36 @@ func main() {
 		log.Fatal("missing command")
 	}
 
-	command := flag.Args()
-	pinger := &healthchecks.APIClient{
+	cmd := flag.Args()
+	client := &healthchecks.APIClient{
 		BaseURL:  *apiURL,
 		MaxTries: int(math.Max(1, float64(*apiTries))), // has to be >=1
 		Client:   &http.Client{Timeout: *apiTimeout},
 	}
 
-	runConfig := RunConfig{
+	cfg := RunConfig{
 		Quiet:          *quiet || *silent,
 		QuietErrors:    *silent,
 		NoStartPing:    *noStartPing,
 		NoOutputInPing: *noOutputInPing,
 	}
 
-	task := func() (int, error) {
-		return Run(command, *uuid, pinger, runConfig)
+	// Save this invocation so we don't repeat ourselves.
+	task := func() int {
+		return Do(cmd, cfg, *uuid, client)
 	}
 
+	exitCode := task()
+
+	// One-shot mode. Exit with command's exit code.
 	if *every == 0 {
-		exitCode, err := task()
-		if err == nil {
-			os.Exit(exitCode)
-		}
-
-		v, ok := err.(*api.PingError)
-		if ok {
-			log.Fatal("Ping Error: ", v)
-		}
-		log.Fatal("Command execution error: ", err)
+		os.Exit(exitCode)
 	}
 
-	task()
-
+	// Task scheduler mode. Run the command periodically at specified interval.
+	ticker := time.NewTicker(*every)
 	runNow := make(chan os.Signal, 1)
 	signal.Notify(runNow, syscall.SIGALRM)
-	ticker := time.NewTicker(*every)
 	for {
 		select {
 		case <-ticker.C:
@@ -101,49 +94,74 @@ func main() {
 	}
 }
 
-// Run function executes cmd[0] with parameters cmd[1:].
-// Pinger is used to signal start, success, or failure of execution.
-func Run(cmd []string, uuid string, p api.Pinger, cfg RunConfig) (exitCode int, err error) {
-	body := io.ReadWriter(new(bytes.Buffer))
-
-	var stdoutWriter, stderrWriter, bodyWriter io.Writer = os.Stdout, os.Stderr, body
-	if cfg.Quiet {
-		stdoutWriter = ioutil.Discard
-	}
-	if cfg.QuietErrors {
-		stderrWriter = ioutil.Discard
-	}
-	if cfg.NoOutputInPing {
-		bodyWriter = ioutil.Discard
-	}
-
-	c := exec.Command(cmd[0], cmd[1:]...)
-	c.Stdout = io.MultiWriter(stdoutWriter, bodyWriter)
-	c.Stderr = io.MultiWriter(stderrWriter, bodyWriter)
+// Do function runs the cmd line, tees its output to terminal & ping body as configured in cfg
+// and pings the monitoring API to signal start, and then success or failure of execution.
+func Do(cmd []string, cfg RunConfig, uuid string, p api.Pinger) (exitCode int) {
+	var pingBody io.ReadWriter = new(bytes.Buffer)
+	var stdoutReceivers, stderrReceivers []io.Writer
 
 	if !cfg.NoStartPing {
-		if err := p.PingStart(uuid, body); err != nil {
-			log.Print("Error trying to ping (start): ", err)
+		if err := p.PingStart(uuid, pingBody); err != nil {
+			log.Print("ping (start) error: ", err)
 		}
 	}
+
+	if !cfg.NoOutputInPing {
+		stdoutReceivers = append(stdoutReceivers, pingBody)
+		stderrReceivers = append(stderrReceivers, pingBody)
+	}
+	if !cfg.Quiet {
+		stdoutReceivers = append(stdoutReceivers, os.Stdout)
+	}
+	if !cfg.QuietErrors {
+		stderrReceivers = append(stderrReceivers, os.Stderr)
+	}
+
+	stdout := io.MultiWriter(stdoutReceivers...)
+	stderr := io.MultiWriter(stderrReceivers...)
+
+	exitCode, err := Run(cmd, stdout, stderr)
+	if err != nil {
+		fmt.Fprintf(stdout, "Command execution failed: %v", err)
+		exitCode = 255
+		goto Ping
+	}
+
+Ping:
+	var pingErr error
+	if exitCode != 0 {
+		fmt.Fprintf(pingBody, "\nCommand exited with code %d\n", exitCode)
+		pingErr = p.PingFailure(uuid, pingBody)
+	} else {
+		pingErr = p.PingSuccess(uuid, pingBody)
+	}
+	if pingErr != nil {
+		log.Print("ping (success/fail) error: ", err)
+	}
+
+	return exitCode
+}
+
+// Run function executes cmd[0] with parameters cmd[1:] and redirects its stdout & stderr to passed
+// writers of corresponding parameter names.
+func Run(cmd []string, stdout, stderr io.Writer) (exitCode int, err error) {
+	c := exec.Command(cmd[0], cmd[1:]...)
+	c.Stdout, c.Stderr = stdout, stderr
 	err = c.Run()
 	if err != nil {
-		v, ok := err.(*exec.ExitError)
-		if !ok {
-			return
+		// Convert *exec.ExitError to just exit code and no error.
+		// From our point of view, it's not really an error but a value.
+		if v, ok := err.(*exec.ExitError); ok {
+			exitCode = v.ProcessState.ExitCode()
+			return exitCode, nil
 		}
-		exitCode = v.ProcessState.ExitCode()
-		fmt.Fprintf(body, "Command exited with code %d\n", exitCode)
 	}
 
-	if exitCode == 0 {
-		err = p.PingSuccess(uuid, body)
-	} else {
-		err = p.PingFailure(uuid, body)
-	}
-	if err != nil {
-		log.Print("Error trying to ping (success/failure): ", err)
-	}
-
+	// Here we either have:
+	// a) we couldn't exectute the command and we have a real error in our hands.
+	//    exitCode's zero value is '0' but it doesn't matter as we'll return non-nil err.
+	// b) the command ran succesfully and exit with code 0.
+	//    exitCode hasn't been mutated, so its zero value of '0' is what we would like to return
+	//    anyway.
 	return
 }
