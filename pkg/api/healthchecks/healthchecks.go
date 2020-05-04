@@ -71,36 +71,26 @@ const (
 	DefaultMaxTries = 3
 )
 
-
-type pingType string
-
-// Ping type decides the URL path for ping
-const (
-	success pingType = ""
-	failure          = "/fail"
-	start            = "/start"
-)
-
-// PingStart sends a Start Ping for the check with passed UUID and attaches
+// PingStart sends a Start Ping for the check with passed uuid and attaches
 // body as the logged context.
-func (c *APIClient) PingStart(UUID string, body io.Reader) error {
-	return c.ping(UUID, body, start)
+func (c *APIClient) PingStart(uuid string, body io.Reader) error {
+	return c.ping(uuid, body, "/start")
 }
 
-// PingSuccess sends a Success Ping for the check with passed UUID and attaches
+// PingSuccess sends a Success Ping for the check with passed uuid and attaches
 // body as the logged context.
-func (c *APIClient) PingSuccess(UUID string, body io.Reader) error {
-	return c.ping(UUID, body, success)
+func (c *APIClient) PingSuccess(uuid string, body io.Reader) error {
+	return c.ping(uuid, body, "")
 }
 
-// PingFailure sends a Fail Ping for the check with passed UUID and attaches
+// PingFailure sends a Fail Ping for the check with passed uuid and attaches
 // body as the logged context.
-func (c *APIClient) PingFailure(UUID string, body io.Reader) error {
-	return c.ping(UUID, body, failure)
+func (c *APIClient) PingFailure(uuid string, body io.Reader) error {
+	return c.ping(uuid, body, "/fail")
 }
 
-func (c *APIClient) ping(UUID string, body io.Reader, t pingType) error {
-	u := fmt.Sprintf("%s/%s%s", c.BaseURL, UUID, string(t))
+func (c *APIClient) ping(uuid string, body io.Reader, typePath string) error {
+	u := fmt.Sprintf("%s/%s%s", c.BaseURL, uuid, typePath)
 
 	_, err := c.Post(u, "text/plain", body)
 	if err != nil {
