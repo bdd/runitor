@@ -133,11 +133,12 @@ func Do(cmd []string, cfg RunConfig, uuid string, p api.Pinger) (exitCode int) {
 	exitCode, err := Run(cmd, stdout, stderr)
 	if err != nil {
 		fmt.Fprintf(stdout, "Command execution failed: %v", err)
-		exitCode = 255
-		goto Ping
+		// Use POSIX EXIT_FAILURE (1) for cases where the specified
+		// command fails to execute.  Execution will continue and a
+		// failure ping will be sent due to non-zero exit code.
+		exitCode = 1
 	}
 
-Ping:
 	var pingErr error
 
 	if exitCode != 0 {
