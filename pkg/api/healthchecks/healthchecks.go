@@ -71,11 +71,6 @@ const (
 	DefaultMaxTries = 3
 )
 
-var DefaultAPIClient = &APIClient{
-	BaseURL:  DefaultBaseURL,
-	MaxTries: DefaultMaxTries,
-	Client:   &http.Client{Timeout: DefaultTimeout},
-}
 
 type pingType string
 
