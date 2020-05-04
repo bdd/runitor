@@ -37,17 +37,20 @@ func (c *APIClient) Post(_url, contentType string, body io.Reader) (resp *http.R
 Try:
 	// Linear backoff at second granularity
 	time.Sleep(time.Duration(tries) * time.Second)
+
 	if tries++; tries >= c.MaxTries {
 		err = fmt.Errorf("max tries (%d) reached", c.MaxTries)
 		return
 	}
+
 	resp, err = c.Client.Post(_url, contentType, body)
 	if err != nil {
 		// Retry timeout and temporary kind of errors
 		if v, ok := err.(*url.Error); ok && (v.Timeout() || v.Temporary()) {
 			goto Try
 		}
-		return // non-recoverable
+		// non-recoverable
+		return
 	}
 
 	switch {

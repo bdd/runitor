@@ -18,7 +18,7 @@ import (
 	"bdd.fi/x/runitor/pkg/api/healthchecks"
 )
 
-// RunConfig sets the behavior of a Run
+// RunConfig sets the behavior of a run.
 type RunConfig struct {
 	Quiet          bool // Don't tee command stdout to stdout
 	QuietErrors    bool // Don't tee command stderr to stderr
@@ -38,6 +38,7 @@ func main() {
 		noStartPing    = flag.Bool("no-start-ping", false, "Don't send start ping")
 		noOutputInPing = flag.Bool("no-output-in-ping", false, "Don't send stdout and stderr with pings")
 	)
+
 	flag.Parse()
 
 	if len(*uuid) == 0 {
@@ -45,6 +46,7 @@ func main() {
 		if !ok || len(v) == 0 {
 			log.Fatal("Must pass check UUID either with '-uuid UUID' param or CHECK_UUID environment variable")
 		}
+
 		uuid = &v
 	}
 
@@ -82,13 +84,16 @@ func main() {
 	ticker := time.NewTicker(*every)
 	runNow := make(chan os.Signal, 1)
 	signal.Notify(runNow, syscall.SIGALRM)
+
 	for {
 		select {
 		case <-ticker.C:
 			task()
+
 		case <-runNow:
 			ticker.Stop()
 			ticker = time.NewTicker(*every)
+
 			task()
 		}
 	}
@@ -97,8 +102,10 @@ func main() {
 // Do function runs the cmd line, tees its output to terminal & ping body as configured in cfg
 // and pings the monitoring API to signal start, and then success or failure of execution.
 func Do(cmd []string, cfg RunConfig, uuid string, p api.Pinger) (exitCode int) {
-	var pingBody io.ReadWriter = new(bytes.Buffer)
-	var stdoutReceivers, stderrReceivers []io.Writer
+	var (
+		stdoutReceivers, stderrReceivers []io.Writer
+		pingBody                         io.ReadWriter = new(bytes.Buffer)
+	)
 
 	if !cfg.NoStartPing {
 		if err := p.PingStart(uuid, pingBody); err != nil {
@@ -110,9 +117,11 @@ func Do(cmd []string, cfg RunConfig, uuid string, p api.Pinger) (exitCode int) {
 		stdoutReceivers = append(stdoutReceivers, pingBody)
 		stderrReceivers = append(stderrReceivers, pingBody)
 	}
+
 	if !cfg.Quiet {
 		stdoutReceivers = append(stdoutReceivers, os.Stdout)
 	}
+
 	if !cfg.QuietErrors {
 		stderrReceivers = append(stderrReceivers, os.Stderr)
 	}
@@ -129,12 +138,14 @@ func Do(cmd []string, cfg RunConfig, uuid string, p api.Pinger) (exitCode int) {
 
 Ping:
 	var pingErr error
+
 	if exitCode != 0 {
 		fmt.Fprintf(pingBody, "\nCommand exited with code %d\n", exitCode)
 		pingErr = p.PingFailure(uuid, pingBody)
 	} else {
 		pingErr = p.PingSuccess(uuid, pingBody)
 	}
+
 	if pingErr != nil {
 		log.Print("ping (success/fail) error: ", err)
 	}
@@ -147,6 +158,7 @@ Ping:
 func Run(cmd []string, stdout, stderr io.Writer) (exitCode int, err error) {
 	c := exec.Command(cmd[0], cmd[1:]...)
 	c.Stdout, c.Stderr = stdout, stderr
+
 	err = c.Run()
 	if err != nil {
 		// Convert *exec.ExitError to just exit code and no error.
@@ -158,9 +170,9 @@ func Run(cmd []string, stdout, stderr io.Writer) (exitCode int, err error) {
 	}
 
 	// Here we either have:
-	// a) we couldn't exectute the command and we have a real error in our hands.
+	// a) we couldn't execute the command and we have a real error in our hands.
 	//    exitCode's zero value is '0' but it doesn't matter as we'll return non-nil err.
-	// b) the command ran succesfully and exit with code 0.
+	// b) the command ran successfully and exit with code 0.
 	//    exitCode hasn't been mutated, so its zero value of '0' is what we would like to return
 	//    anyway.
 	return
