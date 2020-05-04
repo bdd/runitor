@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"time"
-
-	"bdd.fi/x/runitor/pkg/api"
 )
 
 // APIClient holds API endpoint address and client behavior configuration
@@ -111,7 +109,7 @@ func (c *APIClient) ping(UUID string, body io.Reader, t pingType) error {
 
 	_, err := c.Post(u, "text/plain", body)
 	if err != nil {
-		return &api.PingError{Type: string(t), Err: err}
+		return err
 	}
 
 	return nil
