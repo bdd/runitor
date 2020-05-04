@@ -2,6 +2,7 @@ package main // import "bdd.fi/x/runitor/cmd/runitor"
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -163,9 +164,9 @@ func Run(cmd []string, stdout, stderr io.Writer) (exitCode int, err error) {
 	if err != nil {
 		// Convert *exec.ExitError to just exit code and no error.
 		// From our point of view, it's not really an error but a value.
-		if v, ok := err.(*exec.ExitError); ok {
-			exitCode = v.ProcessState.ExitCode()
-			return exitCode, nil
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			return ee.ProcessState.ExitCode(), nil
 		}
 	}
 

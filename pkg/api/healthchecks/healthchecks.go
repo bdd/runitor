@@ -39,7 +39,7 @@ Try:
 	time.Sleep(time.Duration(tries) * time.Second)
 
 	if tries++; tries >= c.MaxTries {
-		err = fmt.Errorf("max tries (%d) reached", c.MaxTries)
+		err = fmt.Errorf("max tries (%d) reached after error: %w", c.MaxTries, err)
 		return
 	}
 
