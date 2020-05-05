@@ -110,7 +110,7 @@ func Do(cmd []string, cfg RunConfig, uuid string, p api.Pinger) (exitCode int) {
 
 	if !cfg.NoStartPing {
 		if err := p.PingStart(uuid, pingBody); err != nil {
-			log.Print("ping (start) error: ", err)
+			log.Print("PingStart: ", err)
 		}
 	}
 
@@ -139,17 +139,17 @@ func Do(cmd []string, cfg RunConfig, uuid string, p api.Pinger) (exitCode int) {
 		exitCode = 1
 	}
 
-	var pingErr error
-
 	if exitCode != 0 {
 		fmt.Fprintf(pingBody, "\nCommand exited with code %d\n", exitCode)
-		pingErr = p.PingFailure(uuid, pingBody)
-	} else {
-		pingErr = p.PingSuccess(uuid, pingBody)
+		if err := p.PingFailure(uuid, pingBody); err != nil {
+			log.Print("PingFailure: ", err)
+		}
+
+		return exitCode
 	}
 
-	if pingErr != nil {
-		log.Print("ping (success/fail) error: ", err)
+	if err := p.PingSuccess(uuid, pingBody); err != nil {
+		log.Print("PingSuccess: ", err)
 	}
 
 	return exitCode
