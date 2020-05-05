@@ -15,8 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"bdd.fi/x/runitor/pkg/api"
-	"bdd.fi/x/runitor/pkg/api/healthchecks"
+	"bdd.fi/x/runitor/internal"
 )
 
 // RunConfig sets the behavior of a run.
@@ -29,9 +28,9 @@ type RunConfig struct {
 
 func main() {
 	var (
-		apiURL         = flag.String("api-url", healthchecks.DefaultBaseURL, "API base URL. Defaults to healthchecks.io hosted service one.")
-		apiTries       = flag.Int("api-tries", healthchecks.DefaultMaxTries, "Number of times an API request will be attempted")
-		apiTimeout     = flag.Duration("api-timeout", healthchecks.DefaultTimeout, "Client timeout per request")
+		apiURL         = flag.String("api-url", internal.DefaultBaseURL, "API base URL. Defaults to healthchecks.io hosted service one.")
+		apiTries       = flag.Int("api-tries", internal.DefaultMaxTries, "Number of times an API request will be attempted")
+		apiTimeout     = flag.Duration("api-timeout", internal.DefaultTimeout, "Client timeout per request")
 		uuid           = flag.String("uuid", "", "UUID of check. Takes precedence over CHECK_UUID env var")
 		every          = flag.Duration("every", 0, "When non-zero periodically run command at specified interval")
 		quiet          = flag.Bool("quiet", false, "Don't tee stdout of the command to terminal")
@@ -56,7 +55,7 @@ func main() {
 	}
 
 	cmd := flag.Args()
-	client := &healthchecks.APIClient{
+	client := &internal.APIClient{
 		BaseURL:  *apiURL,
 		MaxTries: int(math.Max(1, float64(*apiTries))), // has to be >=1
 		Client:   &http.Client{Timeout: *apiTimeout},
@@ -102,7 +101,7 @@ func main() {
 
 // Do function runs the cmd line, tees its output to terminal & ping body as configured in cfg
 // and pings the monitoring API to signal start, and then success or failure of execution.
-func Do(cmd []string, cfg RunConfig, uuid string, p api.Pinger) (exitCode int) {
+func Do(cmd []string, cfg RunConfig, uuid string, p internal.Pinger) (exitCode int) {
 	var (
 		stdoutReceivers, stderrReceivers []io.Writer
 		pingBody                         io.ReadWriter = new(bytes.Buffer)

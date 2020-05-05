@@ -1,4 +1,4 @@
-package healthchecks // import "bdd.fi/x/runitor/pkg/api/healthchecks"
+package internal
 
 import (
 	"fmt"
@@ -7,6 +7,12 @@ import (
 	"net/url"
 	"time"
 )
+
+type Pinger interface {
+	PingStart(string, io.Reader) error
+	PingSuccess(string, io.Reader) error
+	PingFailure(string, io.Reader) error
+}
 
 // APIClient holds API endpoint address and client behavior configuration
 // implemented outside of net/http package. It embeds http.Client.
