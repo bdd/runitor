@@ -58,9 +58,9 @@ Try:
 	}
 
 	switch {
-	case resp.StatusCode == 200:
+	case resp.StatusCode == http.StatusOK:
 		return
-	case resp.StatusCode == 408 || (resp.StatusCode >= 500 && resp.StatusCode <= 599):
+	case resp.StatusCode == http.StatusRequestTimeout || (resp.StatusCode >= 500 && resp.StatusCode <= 599):
 		goto Try
 	default:
 		err = fmt.Errorf("nonretrieable API response: %s", resp.Status)
