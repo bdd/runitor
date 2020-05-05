@@ -92,10 +92,12 @@ func (c *APIClient) PingFailure(uuid string, body io.Reader) error {
 func (c *APIClient) ping(uuid string, body io.Reader, typePath string) error {
 	u := fmt.Sprintf("%s/%s%s", c.BaseURL, uuid, typePath)
 
-	_, err := c.Post(u, "text/plain", body)
+	resp, err := c.Post(u, "text/plain", body)
 	if err != nil {
 		return err
 	}
+
+	resp.Body.Close()
 
 	return nil
 }
