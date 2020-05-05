@@ -140,6 +140,7 @@ func Do(cmd []string, cfg RunConfig, uuid string, p internal.Pinger) (exitCode i
 
 	if exitCode != 0 {
 		fmt.Fprintf(pingBody, "\nCommand exited with code %d\n", exitCode)
+
 		if err := p.PingFailure(uuid, pingBody); err != nil {
 			log.Print("PingFailure: ", err)
 		}
