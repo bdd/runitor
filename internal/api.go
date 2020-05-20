@@ -25,6 +25,10 @@ type APIClient struct {
 	// status of 408 or 5XX.
 	MaxTries int
 
+	// UserAgent, when non-empty, is the value of 'User-Agent' HTTP header
+	// for outgoing requests.
+	UserAgent string
+
 	// Embed
 	*http.Client
 }
@@ -74,8 +78,11 @@ func (c *APIClient) postCustomUA(url, contentType string, body io.Reader) (*http
 		return nil, err
 	}
 
+	if len(c.UserAgent) > 0 {
+		req.Header.Set("User-Agent", c.UserAgent)
+	}
+
 	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("User-Agent", "runitor/0 (+https://bdd.fi/x/runitor)")
 
 	return c.Do(req)
 }

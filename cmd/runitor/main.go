@@ -26,6 +26,17 @@ type RunConfig struct {
 	NoOutputInPing bool // Don't send command std{out, err} with Success and Failure pings.
 }
 
+// Globals used for building help and identification strings.
+
+// Name is the name of this command.
+const Name string = "runitor"
+
+// Homepage is the URL to the canonical website describing this command.
+const Homepage string = "https://bdd.fi/x/runitor"
+
+// Version is the version string that gets overridden at link time for releases.
+var Version string = "HEAD"
+
 func main() {
 	var (
 		apiURL         = flag.String("api-url", internal.DefaultBaseURL, "API base URL. Defaults to healthchecks.io hosted service one.")
@@ -37,9 +48,15 @@ func main() {
 		silent         = flag.Bool("silent", false, "Don't tee stout and stderr of the command to terminal")
 		noStartPing    = flag.Bool("no-start-ping", false, "Don't send start ping")
 		noOutputInPing = flag.Bool("no-output-in-ping", false, "Don't send stdout and stderr with pings")
+		version        = flag.Bool("version", false, "Show version")
 	)
 
 	flag.Parse()
+
+	if *version {
+		fmt.Println(Name, Version)
+		os.Exit(0)
+	}
 
 	if len(*uuid) == 0 {
 		v, ok := os.LookupEnv("CHECK_UUID")
@@ -56,9 +73,10 @@ func main() {
 
 	cmd := flag.Args()
 	client := &internal.APIClient{
-		BaseURL:  *apiURL,
-		MaxTries: int(math.Max(1, float64(*apiTries))), // has to be >=1
-		Client:   &http.Client{Timeout: *apiTimeout},
+		BaseURL:   *apiURL,
+		MaxTries:  int(math.Max(1, float64(*apiTries))), // has to be >=1
+		Client:    &http.Client{Timeout: *apiTimeout},
+		UserAgent: fmt.Sprintf("%s/%s (+%s)", Name, Version, Homepage),
 	}
 
 	cfg := RunConfig{
