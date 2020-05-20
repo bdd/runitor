@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+name="runitor"
+
+build() {
+  go build -o "${BUILD_DIR}/" ./cmd/${name}
+}
+
+build_dist() {
+  # strip symbols
+  local ldflags='-s -w'
+
+  # embed version tag at link time
+  local ver
+  if ver=$(git describe --tags --match "v[0-9]*" --dirty); then
+    ldflags+=$(printf ' -X main.Version='%s'' "${ver}")
+  fi
+
+  local goos goarch
+  goos=${GOOS:-$(go env GOOS)}
+  goarch=${GOARCH:-$(go env GOARCH)}
+
+  local fn_suffix=""
+  if [[ ${goos} == "windows" ]]; then
+    fn_suffix=".exe"
+  fi
+
+  local out="${BUILD_DIR}/${name}-${ver}-${goos}-${goarch}${fn_suffix}"
+
+
+  go build -trimpath -ldflags="${ldflags}" -o "${out}" ./cmd/${name}
+  echo "${out}"
+}
+
+build_dist_all() {
+  # Possible past, present, and future values for GOOS and GOARCH:
+  # https://github.com/golang/go/blob/master/src/go/build/syslist.go
+  local platforms=(
+    "linux-amd64"
+    "linux-arm" # raspberry pi and alike
+    # "linux-arm64" # not that popular, disabled for now.
+    "darwin-amd64"
+    "freebsd-amd64"
+    "openbsd-amd64"
+    "windows-amd64"
+  )
+
+  local oa plat
+  for plat in "${platforms[@]}"; do
+    oa=(${plat/-/ })
+    GOOS="${oa[0]}" GOARCH="${oa[1]}" build_dist
+  done
+}
+
+BUILD_DIR="$(git rev-parse --show-toplevel)/build"
+mkdir -p "${BUILD_DIR}"
+
+if (($# > 0)); then
+  case $1 in
+    dist) build_dist ;;
+    dist-all) build_dist_all ;;
+    *)
+      echo "usage: $0 [dist | all]" >&2
+      exit 1
+      ;;
+  esac
+else
+  build
+fi
