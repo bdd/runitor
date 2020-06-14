@@ -109,9 +109,7 @@ func main() {
 			task()
 
 		case <-runNow:
-			ticker.Stop()
-			ticker = time.NewTicker(*every)
-
+			ticker.Reset(*every)
 			task()
 		}
 	}
