@@ -3,8 +3,16 @@ set -euo pipefail
 
 name="runitor"
 
+# Allow specifying alternate Go version to be used for build.
+#
+# Example usage:
+# % go get golang.org/dl/go1.15beta1
+# % go1.15beta1 download
+# % GO=go1.15beta1 ./scripts/build
+GO="${GO:-go}"
+
 build() {
-  go build -o "${BUILD_DIR}/" ./cmd/${name}
+  ${GO} build -o "${BUILD_DIR}/" ./cmd/${name}
 }
 
 build_dist() {
@@ -29,7 +37,7 @@ build_dist() {
   local out="${BUILD_DIR}/${name}-${ver}-${goos}-${goarch}${fn_suffix}"
 
 
-  go build -trimpath -ldflags="${ldflags}" -o "${out}" ./cmd/${name}
+  ${GO} build -trimpath -ldflags="${ldflags}" -o "${out}" ./cmd/${name}
   echo "${out}"
 }
 
