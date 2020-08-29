@@ -41,6 +41,17 @@ type APIClient struct {
 // instead of exponential. First retry waits for 1 second, second one waits for
 // 2 seconds, and so on.
 func (c *APIClient) Post(url, contentType string, body io.Reader) (resp *http.Response, err error) {
+	req, err := http.NewRequest("POST", url, body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", contentType)
+
+	if len(c.UserAgent) > 0 {
+		req.Header.Set("User-Agent", c.UserAgent)
+	}
+
 	tries := 0
 Try:
 	// Linear backoff at second granularity
@@ -51,7 +62,7 @@ Try:
 		return
 	}
 
-	resp, err = c.postCustomUA(url, contentType, body)
+	resp, err = c.Do(req)
 	if err != nil {
 		// Retry timeout and temporary kind of errors
 		if v, ok := err.(*urlpkg.Error); ok && (v.Timeout() || v.Temporary()) {
@@ -70,21 +81,6 @@ Try:
 		err = fmt.Errorf("nonretrieable API response: %s", resp.Status)
 		return
 	}
-}
-
-func (c *APIClient) postCustomUA(url, contentType string, body io.Reader) (*http.Response, error) {
-	req, err := http.NewRequest("POST", url, body)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(c.UserAgent) > 0 {
-		req.Header.Set("User-Agent", c.UserAgent)
-	}
-
-	req.Header.Set("Content-Type", contentType)
-
-	return c.Do(req)
 }
 
 const (
