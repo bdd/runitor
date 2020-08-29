@@ -14,16 +14,15 @@ type Pinger interface {
 	PingFailure(string, io.Reader) error
 }
 
-// APIClient holds API endpoint address and client behavior configuration
-// implemented outside of net/http package. It embeds http.Client.
+// APIClient holds API endpoint URL, client behavior configuration, and embeds http.Client.
 type APIClient struct {
 	// BaseURL is the base URL of Healthchecks API instance
 	BaseURL string // BaseURL of the Healthchecks API
 
-	// MaxTries is the number of times the pinger will retry an API request
+	// Retries is the number of times the pinger will retry an API request
 	// if it fails with a timeout or temporary kind of error, or an HTTP
 	// status of 408 or 5XX.
-	MaxTries int
+	Retries int
 
 	// UserAgent, when non-empty, is the value of 'User-Agent' HTTP header
 	// for outgoing requests.
@@ -33,13 +32,18 @@ type APIClient struct {
 	*http.Client
 }
 
-// Post wraps embedded http.Client's Post to implement simple retry logic.
+// Post wraps embedded http.Client's Post to implement simple retry logic and
+// custom User-Agent header injection.
 //
+// Retries:
 // The implementation is inspired from Curl's. Request timeouts and temporary
 // network level errors will be retried. Responses with status codes 408 and
 // 5XX are also retried. Unlike Curl's, the backoff implementation is linear
 // instead of exponential. First retry waits for 1 second, second one waits for
 // 2 seconds, and so on.
+//
+// User-Agent:
+// If c.UserAgent is not empty, it overrides http.Client's default header.
 func (c *APIClient) Post(url, contentType string, body io.Reader) (resp *http.Response, err error) {
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
@@ -57,8 +61,8 @@ Try:
 	// Linear backoff at second granularity
 	time.Sleep(time.Duration(tries) * time.Second)
 
-	if tries++; tries >= c.MaxTries {
-		err = fmt.Errorf("max tries (%d) reached after error: %w", c.MaxTries, err)
+	if tries++; tries > 1+c.Retries {
+		err = fmt.Errorf("max tries (%d) reached after error: %w", c.Retries, err)
 		return
 	}
 
@@ -89,7 +93,7 @@ const (
 	// Default HTTP client timeout
 	DefaultTimeout = 5 * time.Second
 	// Default number of tries
-	DefaultMaxTries = 3
+	DefaultRetries = 2
 )
 
 // PingStart sends a Start Ping for the check with passed uuid and attaches

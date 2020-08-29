@@ -19,8 +19,8 @@ or terminate with a failure.
 
 	-api-url="https://hc-ping.com"
 		API base URL. Defaults to healthchecks.io hosted service one
-	-api-tries=3
-		Number of times an API request will be attempted
+	-api-retries=2
+		Number of times an API request will be retried if it fails with a transient error
 	-api-timeout="5s"
 		Client timeout per request
 	-uuid=""

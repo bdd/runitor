@@ -40,7 +40,8 @@ var Version string = "HEAD"
 func main() {
 	var (
 		apiURL         = flag.String("api-url", internal.DefaultBaseURL, "API base URL. Defaults to healthchecks.io hosted service one.")
-		apiTries       = flag.Int("api-tries", internal.DefaultMaxTries, "Number of times an API request will be attempted")
+		apiRetries     = flag.Int("api-retries", internal.DefaultRetries, "Number of times an API request will be retried if it fails with a transient error")
+		_apiTries      = flag.Int("api-tries", 0, "DEPRECATED (pending removal in v1.0.0): Use -api-retries")
 		apiTimeout     = flag.Duration("api-timeout", internal.DefaultTimeout, "Client timeout per request")
 		uuid           = flag.String("uuid", "", "UUID of check. Takes precedence over CHECK_UUID env var")
 		every          = flag.Duration("every", 0, "When non-zero periodically run command at specified interval")
@@ -71,10 +72,18 @@ func main() {
 		log.Fatal("missing command")
 	}
 
+	var retries = int(math.Max(0, float64(*apiRetries))) // has to be >= 0
+
+	if *_apiTries > 0 {
+		retries = *_apiTries - 1
+
+		log.Print("The '-api-tries' flag is deprecated and will be removed in v1.0.0. Switch to '-api-retries' flag.")
+	}
+
 	cmd := flag.Args()
 	client := &internal.APIClient{
 		BaseURL:   *apiURL,
-		MaxTries:  int(math.Max(1, float64(*apiTries))), // has to be >=1
+		Retries:   retries,
 		Client:    &http.Client{Timeout: *apiTimeout},
 		UserAgent: fmt.Sprintf("%s/%s (+%s)", Name, Version, Homepage),
 	}
