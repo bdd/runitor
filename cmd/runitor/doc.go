@@ -9,7 +9,13 @@ or terminate with a failure.
 
 Install:
 
-	go get bdd.fi/x/runitor/cmd/runitor
+Binaries of the latest release for popular platforms are at https://github.com/bdd/runitor/releases/latest
+
+If you need to cross compile for a certain operating system and architecture pair, you can clone the repository and use the build script.
+
+	git clone https://github.com/bdd/runitor
+	GOOS=plan9 GOARCH=arm runitor/scripts/build dist
+
 
 Usage:
 
