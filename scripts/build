@@ -46,8 +46,8 @@ build_dist_all() {
   # https://github.com/golang/go/blob/master/src/go/build/syslist.go
   local platforms=(
     "linux-amd64"
-    "linux-arm" # raspberry pi and alike
-    # "linux-arm64" # not that popular, disabled for now.
+    "linux-arm"
+    "linux-arm64"
     "darwin-amd64"
     "freebsd-amd64"
     "openbsd-amd64"
