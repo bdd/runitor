@@ -1,6 +1,11 @@
+// Package internal contains healthchecks.io HTTP API client implementation for
+// cmd/runitor's use.
+//
+// It is not intended to be used as a standalone client package.
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -8,10 +13,26 @@ import (
 	"time"
 )
 
+const (
+	// Default Healthchecks API address.
+	DefaultBaseURL = "https://hc-ping.com"
+	// Default HTTP client timeout.
+	DefaultTimeout = 5 * time.Second
+	// Default number of retries.
+	DefaultRetries = 2
+)
+
+var (
+	ErrNonRetriable = errors.New("nonretriable error response")
+	ErrMaxTries     = errors.New("max tries reached")
+)
+
+// Pinger is the interface to Healthchecks.io pinging API
+// https://healthchecks.io/docs/http_api/
 type Pinger interface {
-	PingStart(string, io.Reader) error
-	PingSuccess(string, io.Reader) error
-	PingFailure(string, io.Reader) error
+	PingStart(uuid string, body io.Reader) error
+	PingSuccess(uuid string, body io.Reader) error
+	PingFailure(uuid string, body io.Reader) error
 }
 
 // APIClient holds API endpoint URL, client behavior configuration, and embeds http.Client.
@@ -62,16 +83,18 @@ Try:
 	time.Sleep(time.Duration(tries) * time.Second)
 
 	if tries++; tries > 1+c.Retries {
-		err = fmt.Errorf("max tries (%d) reached after error: %w", c.Retries, err)
+		err = fmt.Errorf("%w after try %d. last error: %v", ErrMaxTries, tries-1, err)
 		return
 	}
 
 	resp, err = c.Do(req)
 	if err != nil {
 		// Retry timeout and temporary kind of errors
-		if v, ok := err.(*urlpkg.Error); ok && (v.Timeout() || v.Temporary()) {
+		var uerr *urlpkg.Error
+		if errors.As(err, &uerr) && (uerr.Timeout() || uerr.Temporary()) {
 			goto Try
 		}
+
 		// non-recoverable
 		return
 	}
@@ -82,19 +105,10 @@ Try:
 	case resp.StatusCode == http.StatusRequestTimeout || (resp.StatusCode >= 500 && resp.StatusCode <= 599):
 		goto Try
 	default:
-		err = fmt.Errorf("nonretrieable API response: %s", resp.Status)
+		err = fmt.Errorf("%w: %s", ErrNonRetriable, resp.Status)
 		return
 	}
 }
-
-const (
-	// Default Healthchecks API address
-	DefaultBaseURL = "https://hc-ping.com"
-	// Default HTTP client timeout
-	DefaultTimeout = 5 * time.Second
-	// Default number of tries
-	DefaultRetries = 2
-)
 
 // PingStart sends a Start Ping for the check with passed uuid and attaches
 // body as the logged context.

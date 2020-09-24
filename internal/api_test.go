@@ -18,9 +18,11 @@ const TestUUID string = "test-uuid"
 // Tests if APIClient makes requests with the expected method, content-type,
 // and user-agent.
 func TestPostRequest(t *testing.T) {
-	const expMethod = "POST"
-	const expCT = "text/plain"
-	const expUA = "test-user-agent"
+	const (
+		expMethod = "POST"
+		expCT     = "text/plain"
+		expUA     = "test-user-agent"
+	)
 
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != expMethod {
@@ -57,7 +59,7 @@ func TestPostRetries(t *testing.T) {
 		t.Skip("skipping retry tests with backoff in short mode.")
 	}
 
-	var retryTests = []int{
+	retryTests := []int{
 		http.StatusRequestTimeout,
 		500,
 		599,
@@ -124,7 +126,7 @@ func TestPostURIs(t *testing.T) {
 	c := &APIClient{}
 
 	// uriPath -> pingFunction
-	var testCases = map[string]ping{
+	testCases := map[string]ping{
 		fmt.Sprintf("/%s/%s", TestUUID, "start"): c.PingStart,
 		fmt.Sprintf("/%s", TestUUID):             c.PingSuccess,
 		fmt.Sprintf("/%s/%s", TestUUID, "fail"):  c.PingFailure,

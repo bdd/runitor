@@ -72,7 +72,7 @@ func main() {
 		log.Fatal("missing command")
 	}
 
-	var retries = int(math.Max(0, float64(*apiRetries))) // has to be >= 0
+	retries := int(math.Max(0, float64(*apiRetries))) // has to be >= 0
 
 	if *_apiTries > 0 {
 		retries = *_apiTries - 1
