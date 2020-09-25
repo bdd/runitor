@@ -49,6 +49,9 @@ type APIClient struct {
 	// for outgoing requests.
 	UserAgent string
 
+	// Backoff is the duration used as the unit of linear backoff.
+	Backoff time.Duration
+
 	// Embed
 	*http.Client
 }
@@ -77,10 +80,15 @@ func (c *APIClient) Post(url, contentType string, body io.Reader) (resp *http.Re
 		req.Header.Set("User-Agent", c.UserAgent)
 	}
 
+	backoffStep := c.Backoff
+	if backoffStep == 0 {
+		backoffStep = time.Second
+	}
+
 	tries := 0
 Try:
 	// Linear backoff at second granularity
-	time.Sleep(time.Duration(tries) * time.Second)
+	time.Sleep(time.Duration(tries) * backoffStep)
 
 	if tries++; tries > 1+c.Retries {
 		err = fmt.Errorf("%w after try %d. last error: %v", ErrMaxTries, tries-1, err)

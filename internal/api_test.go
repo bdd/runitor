@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"strings"
+	"time"
 
 	. "bdd.fi/x/runitor/internal"
 
@@ -55,14 +56,21 @@ func TestPostRequest(t *testing.T) {
 
 // Tests if request timeout errors and HTTP 5XX responses get retried.
 func TestPostRetries(t *testing.T) {
+	const SleepToCauseTimeout = 0
+
 	if testing.Short() {
 		t.Skip("skipping retry tests with backoff in short mode.")
 	}
 
+	backoff := 5 * time.Millisecond
+	clientTimeout := backoff
+
 	retryTests := []int{
+		SleepToCauseTimeout,
 		http.StatusRequestTimeout,
 		500,
 		599,
+		SleepToCauseTimeout,
 		200, // must end with 200
 	}
 
@@ -71,18 +79,28 @@ func TestPostRetries(t *testing.T) {
 	tries := 0
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if tries++; tries <= expectedTries {
-			w.WriteHeader(retryTests[tries-1])
+			status := retryTests[tries-1]
+			if status == SleepToCauseTimeout {
+				time.Sleep(2 * clientTimeout)
+				return
+			}
+
+			w.WriteHeader(status)
 		} else {
-			t.Fatalf("expected client to try %d times, received %d tries", tries-1, tries)
+			t.Fatalf("expected client to try %d times, received %d tries", expectedTries, tries-1)
 		}
 	}))
 
 	defer ts.Close()
 
+	client := ts.Client()
+	client.Timeout = backoff
+
 	c := &APIClient{
 		BaseURL: ts.URL,
-		Client:  ts.Client(),
+		Client:  client,
 		Retries: expectedTries - 1,
+		Backoff: backoff,
 	}
 
 	err := c.PingSuccess(TestUUID, nil)
