@@ -7,21 +7,23 @@ Healthchecks.io is a web service for monitoring periodic tasks. It's like a
 dead man's switch for your cron jobs. You get alerted if they don't run on time
 or terminate with a failure.
 
-## Install:
+## Installation
 
+### Download Release Binaries
 Binaries of the latest release for popular platforms are at https://github.com/bdd/runitor/releases/latest
 
+### Clone and Build Locally
 If you need to cross compile for a certain operating system and architecture pair, you can clone the repository and use the build script.
 
 	git clone https://github.com/bdd/runitor
 	GOOS=plan9 GOARCH=arm runitor/scripts/build dist
 
 
-## Usage:
+## Usage
 
 	runitor -uuid uuid -- command
 
-### Flags:
+### Flags
 
 	-api-url="https://hc-ping.com"
 		API base URL. Defaults to healthchecks.io hosted service one
@@ -61,17 +63,17 @@ in one process per container environments.
 
 ## Example Use
 
-### Certificate Renewal:
+### Certificate Renewal
 
 	runitor -uuid 2f9-a5c-0123 -- dehydrated --cron --config example.com.conf
 
-### Repository Maintenance:
+### Repository Maintenance
 
 	# Run the maintenance script every 100 minutes (1 hour 40 minutes)
 
 	runitor -uuid 2f9-a5c-0123 -every 1h40m -- /script/git-maint
 
-### Backup:
+### Backup
 
 	# Do not attach output to ping.
 	# Backup software may leak filenames and paths.
