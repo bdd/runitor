@@ -22,8 +22,9 @@ import (
 type RunConfig struct {
 	Quiet          bool // Don't tee command stdout to stdout
 	QuietErrors    bool // Don't tee command stderr to stderr
-	NoStartPing    bool // Don't send Start ping.
-	NoOutputInPing bool // Don't send command std{out, err} with Success and Failure pings.
+	NoStartPing    bool // Don't send Start ping
+	NoOutputInPing bool // Don't send command std{out, err} with Success and Failure pings
+	PingBodyLimit  uint // Truncate ping body to last N bytes
 }
 
 // Globals used for building help and identification strings.
@@ -49,6 +50,7 @@ func main() {
 		silent         = flag.Bool("silent", false, "Don't tee stout and stderr of the command to terminal")
 		noStartPing    = flag.Bool("no-start-ping", false, "Don't send start ping")
 		noOutputInPing = flag.Bool("no-output-in-ping", false, "Don't send stdout and stderr with pings")
+		pingBodyLimit  = flag.Uint("ping-body-limit", 10000, "Truncate ping body to last N bytes including the truncation notice. 0 for no truncation.")
 		version        = flag.Bool("version", false, "Show version")
 	)
 
@@ -93,6 +95,7 @@ func main() {
 		QuietErrors:    *silent,
 		NoStartPing:    *noStartPing,
 		NoOutputInPing: *noOutputInPing,
+		PingBodyLimit:  *pingBodyLimit,
 	}
 
 	// Save this invocation so we don't repeat ourselves.
@@ -129,11 +132,19 @@ func main() {
 func Do(cmd []string, cfg RunConfig, uuid string, p internal.Pinger) (exitCode int) {
 	var (
 		stdoutReceivers, stderrReceivers []io.Writer
-		pingBody                         io.ReadWriter = new(bytes.Buffer)
+		pingBody                         io.ReadWriter
+		pingBodyRB                       *internal.RingBuffer
 	)
 
+	if cfg.PingBodyLimit > 0 {
+		pingBodyRB = internal.NewRingBuffer(int(cfg.PingBodyLimit))
+		pingBody = pingBodyRB
+	} else {
+		pingBody = new(bytes.Buffer)
+	}
+
 	if !cfg.NoStartPing {
-		if err := p.PingStart(uuid, pingBody); err != nil {
+		if err := p.PingStart(uuid, nil); err != nil {
 			log.Print("PingStart: ", err)
 		}
 	}
@@ -163,8 +174,12 @@ func Do(cmd []string, cfg RunConfig, uuid string, p internal.Pinger) (exitCode i
 		exitCode = 1
 	}
 
+	if pingBodyRB != nil && pingBodyRB.Wrapped() {
+		fmt.Fprintf(pingBody, "\n(%s) Output truncated to last %d KiB.", Name, cfg.PingBodyLimit)
+	}
+
 	if exitCode != 0 {
-		fmt.Fprintf(pingBody, "\nCommand exited with code %d\n", exitCode)
+		fmt.Fprintf(pingBody, "\n(%s) Command exited with code %d.", Name, exitCode)
 
 		if err := p.PingFailure(uuid, pingBody); err != nil {
 			log.Print("PingFailure: ", err)

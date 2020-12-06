@@ -43,6 +43,9 @@ If you need to cross compile for a certain operating system and architecture pai
 		Don't send start ping
 	-no-output-in-ping=false
 		Don't send stdout and stderr with pings
+	-ping-body-limit=10000
+		Truncate ping body to last N bytes including the truncation notice
+		0 for no truncation.
 
 
 ## Why Do I Need This Instead of Calling curl from a Shell Script?
