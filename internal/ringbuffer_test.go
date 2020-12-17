@@ -18,12 +18,6 @@ func TestWrite(t *testing.T) {
 		t.Errorf("expected Cap() to return %d but got %d", RCap, rbcap)
 	}
 
-	type test struct {
-		name string
-		str  string
-		buf  string
-	}
-
 	tests := map[string]struct {
 		str string
 		buf string
@@ -58,6 +52,31 @@ func TestWrite(t *testing.T) {
 		snap := string(rb.Snapshot())
 		if tc.buf != snap {
 			t.Errorf("%s: expected ring buffer to be '%s', got '%s'", name, tc.buf, snap)
+		}
+	}
+}
+
+func TestRead(t *testing.T) {
+	tests := map[string]struct {
+		str string
+		out string
+	}{
+		"empty":     {str: "", out: ""},
+		"half full": {str: "0123", out: "0123"},
+		"full":      {str: "01234567", out: "01234567"},
+		"wrapped":   {str: "0123456789", out: "23456789"},
+	}
+
+	for name, tc := range tests {
+		rb := NewRingBuffer(RCap)
+		fmt.Fprint(rb, tc.str)
+		out, err := ioutil.ReadAll(rb)
+		if err != nil {
+			t.Errorf("%s: read failed: %v", name, err)
+		}
+		outstr := string(out)
+		if outstr != tc.out {
+			t.Errorf("%s: expected to read '%s', got '%s'", name, tc.out, outstr)
 		}
 	}
 }

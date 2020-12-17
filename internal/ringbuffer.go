@@ -103,7 +103,10 @@ func (r *RingBuffer) read(p []byte) (n int) {
 
 	for cn := 0; n < goal; {
 		from := r.idx
-		to := r.unread % (r.Len() + 1)
+		to := from + r.unread
+		if to > r.Len() {
+			to = r.Len()
+		}
 		cn = copy(p[n:], r.buf[from:to])
 		n += cn
 		r.unread -= cn
