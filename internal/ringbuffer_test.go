@@ -18,32 +18,27 @@ func TestWrite(t *testing.T) {
 		t.Errorf("expected Cap() to return %d but got %d", RCap, rbcap)
 	}
 
-	type test struct {
+	tests := []struct {
 		name string
 		str  string
 		buf  string
-	}
-
-	tests := map[string]struct {
-		str string
-		buf string
 	}{
-		"simple write":    {str: "abc", buf: "abc"},
-		"wrap":            {str: "012345", buf: "5bc01234"},
-		"overrun discard": {str: "0123456789", buf: "78923456"},
-		"zero byte write": {str: "", buf: "78923456"},
+		{name: "simple write", str: "abc", buf: "abc"},
+		{name: "wrap", str: "012345", buf: "5bc01234"},
+		{name: "overrun discard", str: "0123456789", buf: "78923456"},
+		{name: "zero byte write", str: "", buf: "78923456"},
 	}
 
 	lenExp := 0
 
-	for name, tc := range tests {
+	for _, tc := range tests {
 		n, err := fmt.Fprint(rb, tc.str)
 		if err != nil {
-			t.Errorf("%s: expected Write to succeed, got err '%v'", name, err)
+			t.Errorf("%s: expected Write to succeed, got err '%v'", tc.name, err)
 		}
 
 		if n != len(tc.str) {
-			t.Errorf("%s: expected Write to return %d, got %d", name, len(tc.str), n)
+			t.Errorf("%s: expected Write to return %d, got %d", tc.name, len(tc.str), n)
 		}
 
 		lenExp = (lenExp + n)
@@ -52,12 +47,37 @@ func TestWrite(t *testing.T) {
 		}
 
 		if rblen := rb.Len(); rblen != lenExp {
-			t.Errorf("%s: expected Len to return %d, got %d", name, lenExp, rblen)
+			t.Errorf("%s: expected Len to return %d, got %d", tc.name, lenExp, rblen)
 		}
 
 		snap := string(rb.Snapshot())
 		if tc.buf != snap {
-			t.Errorf("%s: expected ring buffer to be '%s', got '%s'", name, tc.buf, snap)
+			t.Errorf("%s: expected ring buffer to be '%s', got '%s'", tc.name, tc.buf, snap)
+		}
+	}
+}
+
+func TestRead(t *testing.T) {
+	tests := map[string]struct {
+		str string
+		out string
+	}{
+		"empty":     {str: "", out: ""},
+		"half full": {str: "0123", out: "0123"},
+		"full":      {str: "01234567", out: "01234567"},
+		"wrapped":   {str: "0123456789", out: "23456789"},
+	}
+
+	for name, tc := range tests {
+		rb := NewRingBuffer(RCap)
+		fmt.Fprint(rb, tc.str)
+		out, err := ioutil.ReadAll(rb)
+		if err != nil {
+			t.Errorf("%s: read failed: %v", name, err)
+		}
+		outstr := string(out)
+		if outstr != tc.out {
+			t.Errorf("%s: expected to read '%s', got '%s'", name, tc.out, outstr)
 		}
 	}
 }

@@ -175,7 +175,7 @@ func Do(cmd []string, cfg RunConfig, uuid string, p internal.Pinger) (exitCode i
 	}
 
 	if pingBodyRB != nil && pingBodyRB.Wrapped() {
-		fmt.Fprintf(pingBody, "\n(%s) Output truncated to last %d KiB.", Name, cfg.PingBodyLimit)
+		fmt.Fprintf(pingBody, "\n(%s) Output truncated to last %d bytes.", Name, cfg.PingBodyLimit)
 	}
 
 	if exitCode != 0 {
