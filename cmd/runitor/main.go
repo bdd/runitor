@@ -20,8 +20,8 @@ import (
 
 // RunConfig sets the behavior of a run.
 type RunConfig struct {
-	Quiet          bool // Don't tee command stdout to stdout
-	QuietErrors    bool // Don't tee command stderr to stderr
+	Quiet          bool // No cmd stdout
+	Silent         bool // No cmd stdout or stderr
 	NoStartPing    bool // Don't send Start ping
 	NoOutputInPing bool // Don't send command std{out, err} with Success and Failure pings
 	PingBodyLimit  uint // Truncate ping body to last N bytes
@@ -46,8 +46,8 @@ func main() {
 		apiTimeout     = flag.Duration("api-timeout", internal.DefaultTimeout, "Client timeout per request")
 		uuid           = flag.String("uuid", "", "UUID of check. Takes precedence over CHECK_UUID env var")
 		every          = flag.Duration("every", 0, "When non-zero periodically run command at specified interval")
-		quiet          = flag.Bool("quiet", false, "Don't tee stdout of the command to terminal")
-		silent         = flag.Bool("silent", false, "Don't tee stout and stderr of the command to terminal")
+		quiet          = flag.Bool("quiet", false, "Don't capture command's stdout")
+		silent         = flag.Bool("silent", false, "Don't capture any of command's output")
 		noStartPing    = flag.Bool("no-start-ping", false, "Don't send start ping")
 		noOutputInPing = flag.Bool("no-output-in-ping", false, "Don't send stdout and stderr with pings")
 		pingBodyLimit  = flag.Uint("ping-body-limit", 10000, "Truncate ping body to last N bytes including the truncation notice. 0 for no truncation.")
@@ -92,7 +92,7 @@ func main() {
 
 	cfg := RunConfig{
 		Quiet:          *quiet || *silent,
-		QuietErrors:    *silent,
+		Silent:         *silent,
 		NoStartPing:    *noStartPing,
 		NoOutputInPing: *noOutputInPing,
 		PingBodyLimit:  *pingBodyLimit,
@@ -130,65 +130,68 @@ func main() {
 // Do function runs the cmd line, tees its output to terminal & ping body as configured in cfg
 // and pings the monitoring API to signal start, and then success or failure of execution.
 func Do(cmd []string, cfg RunConfig, uuid string, p internal.Pinger) (exitCode int) {
-	var (
-		stdoutReceivers, stderrReceivers []io.Writer
-		pingBody                         io.ReadWriter
-		pingBodyRB                       *internal.RingBuffer
-	)
-
-	if cfg.PingBodyLimit > 0 {
-		pingBodyRB = internal.NewRingBuffer(int(cfg.PingBodyLimit))
-		pingBody = pingBodyRB
-	} else {
-		pingBody = new(bytes.Buffer)
-	}
-
 	if !cfg.NoStartPing {
 		if err := p.PingStart(uuid, nil); err != nil {
 			log.Print("PingStart: ", err)
 		}
 	}
 
-	if !cfg.NoOutputInPing {
-		stdoutReceivers = append(stdoutReceivers, pingBody)
-		stderrReceivers = append(stderrReceivers, pingBody)
+	var (
+		pbr *internal.RingBuffer
+		pb  io.ReadWriter
+	)
+
+	if cfg.PingBodyLimit > 0 {
+		pbr = internal.NewRingBuffer(int(cfg.PingBodyLimit))
+		pb = io.ReadWriter(pbr)
+	} else {
+		pb = new(bytes.Buffer)
 	}
 
+	var mw io.Writer
+	if cfg.NoOutputInPing {
+		mw = io.MultiWriter(os.Stdout)
+	} else {
+		mw = io.MultiWriter(os.Stdout, pb)
+	}
+
+	// WARNING:
+	// cmdStdout and cmdStderr either need to be the same Writer or either
+	// of them nil. With two different writers the order of stdout and
+	// stderr writes cannot be preserved.
+	var cmdStdout, cmdStderr io.Writer
 	if !cfg.Quiet {
-		stdoutReceivers = append(stdoutReceivers, os.Stdout)
+		cmdStdout = mw
+	}
+	if !cfg.Silent {
+		cmdStderr = mw
 	}
 
-	if !cfg.QuietErrors {
-		stderrReceivers = append(stderrReceivers, os.Stderr)
-	}
-
-	stdout := io.MultiWriter(stdoutReceivers...)
-	stderr := io.MultiWriter(stderrReceivers...)
-
-	exitCode, err := Run(cmd, stdout, stderr)
+	exitCode, err := Run(cmd, cmdStdout, cmdStderr)
 	if err != nil {
-		fmt.Fprintf(stdout, "Command execution failed: %v", err)
+		fmt.Fprintf(io.MultiWriter(os.Stderr, pb),
+			"Command execution failed: %v\n", err)
 		// Use POSIX EXIT_FAILURE (1) for cases where the specified
 		// command fails to execute.  Execution will continue and a
 		// failure ping will be sent due to non-zero exit code.
 		exitCode = 1
 	}
 
-	if pingBodyRB != nil && pingBodyRB.Wrapped() {
-		fmt.Fprintf(pingBody, "\n(%s) Output truncated to last %d bytes.", Name, cfg.PingBodyLimit)
+	if pbr != nil && pbr.Wrapped() {
+		fmt.Fprintf(pb, "\n[%s] Output truncated to last %d bytes.", Name, cfg.PingBodyLimit)
 	}
 
 	if exitCode != 0 {
-		fmt.Fprintf(pingBody, "\n(%s) Command exited with code %d.", Name, exitCode)
+		fmt.Fprintf(pb, "\n[%s] Command exited with code %d.", Name, exitCode)
 
-		if err := p.PingFailure(uuid, pingBody); err != nil {
+		if err := p.PingFailure(uuid, pb); err != nil {
 			log.Print("PingFailure: ", err)
 		}
 
 		return exitCode
 	}
 
-	if err := p.PingSuccess(uuid, pingBody); err != nil {
+	if err := p.PingSuccess(uuid, pb); err != nil {
 		log.Print("PingSuccess: ", err)
 	}
 
