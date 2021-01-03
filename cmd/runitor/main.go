@@ -202,7 +202,7 @@ func Do(cmd []string, cfg RunConfig, uuid string, p internal.Pinger) (exitCode i
 // writers of corresponding parameter names.
 func Run(cmd []string, stdout, stderr io.Writer) (exitCode int, err error) {
 	c := exec.Command(cmd[0], cmd[1:]...)
-	c.Stdout, c.Stderr = stdout, stderr
+	c.Stdin, c.Stdout, c.Stderr = os.Stdin, stdout, stderr
 
 	err = c.Run()
 	if err != nil {
