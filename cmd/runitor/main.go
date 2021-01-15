@@ -40,17 +40,17 @@ var Version string = "HEAD"
 
 func main() {
 	var (
-		apiURL         = flag.String("api-url", internal.DefaultBaseURL, "API base URL. Defaults to healthchecks.io hosted service one.")
+		apiURL         = flag.String("api-url", internal.DefaultBaseURL, "API URL")
 		apiRetries     = flag.Int("api-retries", internal.DefaultRetries, "Number of times an API request will be retried if it fails with a transient error")
 		_apiTries      = flag.Int("api-tries", 0, "DEPRECATED (pending removal in v1.0.0): Use -api-retries")
 		apiTimeout     = flag.Duration("api-timeout", internal.DefaultTimeout, "Client timeout per request")
-		uuid           = flag.String("uuid", "", "UUID of check. Takes precedence over CHECK_UUID env var")
-		every          = flag.Duration("every", 0, "When non-zero periodically run command at specified interval")
+		uuid           = flag.String("uuid", "", "UUID of check. Takes precedence over CHECK_UUID environment variable")
+		every          = flag.Duration("every", 0, "If non-zero, periodically run command at specified interval")
 		quiet          = flag.Bool("quiet", false, "Don't capture command's stdout")
-		silent         = flag.Bool("silent", false, "Don't capture any of command's output")
+		silent         = flag.Bool("silent", false, "Don't capture command's stdout or stderr")
 		noStartPing    = flag.Bool("no-start-ping", false, "Don't send start ping")
-		noOutputInPing = flag.Bool("no-output-in-ping", false, "Don't send stdout and stderr with pings")
-		pingBodyLimit  = flag.Uint("ping-body-limit", 10000, "Truncate ping body to last N bytes including the truncation notice. 0 for no truncation.")
+		noOutputInPing = flag.Bool("no-output-in-ping", false, "Don't send command's output in pings")
+		pingBodyLimit  = flag.Uint("ping-body-limit", 10000, "If non-zero, truncate the ping body to its last N bytes, including a truncation notice.")
 		version        = flag.Bool("version", false, "Show version")
 	)
 

@@ -1,7 +1,8 @@
 # runitor
 
 Runitor runs the supplied command, captures its output, and based on its exit
-code reports successful or failed execution to https://healthchecks.io.
+code reports successful or failed execution to https://healthchecks.io or your
+private instance.
 
 Healthchecks.io is a web service for monitoring periodic tasks. It's like a
 dead man's switch for your cron jobs. You get alerted if they don't run on time
@@ -10,42 +11,17 @@ or terminate with a failure.
 ## Installation
 
 ### Download Release Binaries
-Binaries of the latest release for popular platforms are at https://github.com/bdd/runitor/releases/latest
+
+Binaries of the latest release for popular platforms are at
+https://github.com/bdd/runitor/releases/latest
 
 ### Clone and Build Locally
-If you need to cross compile for a certain operating system and architecture pair, you can clone the repository and use the build script.
+
+If you need to cross compile for a certain operating system and architecture
+pair, you can clone the repository and use the build script.
 
 	git clone https://github.com/bdd/runitor
 	GOOS=plan9 GOARCH=arm runitor/scripts/build dist
-
-
-## Usage
-
-	runitor -uuid uuid -- command
-
-### Flags
-
-	-api-url="https://hc-ping.com"
-		API base URL. Defaults to healthchecks.io hosted service one
-	-api-retries=2
-		Number of times an API request will be retried if it fails with a transient error
-	-api-timeout="5s"
-		Client timeout per request
-	-uuid=""
-		UUID of check. Takes precedence over CHECK_UUID env var
-	-every="0s"
-		When non-zero periodically run command at specified interval
-	-quiet=false
-		Don't tee stdout of the command to terminal
-	-silent=false
-		Don't tee stout and stderr of the command to terminal
-	-no-start-ping=false
-		Don't send start ping
-	-no-output-in-ping=false
-		Don't send stdout and stderr with pings
-	-ping-body-limit=10000
-		Truncate ping body to last N bytes including the truncation notice
-		0 for no truncation.
 
 
 ## Why Do I Need This Instead of Calling curl from a Shell Script?
@@ -64,25 +40,26 @@ readily have access to a job scheduler like crond or systemd.timer. Works well
 in one process per container environments.
 
 
-## Example Use
+## Example Uses
 
 ### Certificate Renewal
 
-	runitor -uuid 2f9-a5c-0123 -- dehydrated --cron --config example.com.conf
+	export CHECK_UUID=8116e449-d71c-4112-8f5d-a66f60902091
+	runitor -- dehydrated --cron --config example.com.conf
 
 ### Repository Maintenance
 
-	# Run the maintenance script every 100 minutes (1 hour 40 minutes)
+	# Run the maintenance script 10 times a day (24h/10 = 2h 24m)
 
-	runitor -uuid 2f9-a5c-0123 -every 1h40m -- /script/git-maint
+	runitor -uuid edf72661-62ff-49e7-a921-33b41502d7e7 \
+		-every 2h24m -- /script/git-maint
 
 ### Backup
 
 	# Do not attach output to ping.
 	# Backup software may leak filenames and paths.
 
-	runitor -uuid 2f9-a5c-0123 -no-output-in-ping -- restic backup /home /etc
-
+	runitor -no-output-in-ping -- restic backup /home /etc
 
 ### Triggering an Immediate Run in Periodic Mode
 
@@ -96,6 +73,38 @@ command right away and reset the interval.
 	pkill -ALRM runitor
 
 
+## Usage
+
+	runitor [-uuid uuid] -- command
+
+### Flags
+
+	-uuid=""
+		UUID of check. Takes precedence over CHECK_UUID environment variable.
+	-every="0s"
+		If non-zero, periodically run command at specified interval.
+	-quiet=false
+		Don't capture command's stdout.
+	-silent=false
+		Don't capture command's stdout or stderr.
+	-no-start-ping=false
+		Don't send start ping.
+	-no-output-in-ping=false
+		Don't send command's output in pings.
+	-ping-body-limit=10000
+		If non-zero, truncate the ping body to its last N bytes,
+		including a truncation notice.
+		Default value of 10KB is equal to healthchecks.io instance's
+		ping body limit.
+	-api-url="https://hc-ping.com"
+		API URL. Defaults to healthchecks.io hosted service.
+	-api-retries=2
+		Number of times an API request will be retried if it fails with
+		a transient error.
+	-api-timeout="5s"
+		Client timeout per request.
+
+
 ## More on What healthchecks.io Provides
 
 * It listens for HTTP requests (pings) from services being monitored.
@@ -107,12 +116,11 @@ command right away and reset the interval.
 
 * Pings can explicitly signal failure of execution so an alert can be send.
 
-* Pings can attach up to 10KB of logs.
+* Pings can attach up to 10KB of logs. Runitor automatically handles truncation if needed.
 
 * It can alert you via email, SMS, WhatsApp, Slack, and many more services.
 
-* It has a free tier with up to 20 checks (last checked April 2020)
+* It has a free tier with up to 20 checks.
 
 * Software behind the service is open source. You can run your own instance if
   you'd like to.
-
