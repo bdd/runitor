@@ -20,4 +20,4 @@ jobs:
         go-version: '>=1.5 <2'
 
     - name: depaware
-      run: go run github.com/tailscale/depaware --check bdd.fi/x/runitor/cmd/runitor
+      run: go run github.com/tailscale/depaware -goos "linux,darwin,freebsd,openbsd,windows" -check bdd.fi/x/runitor/cmd/runitor

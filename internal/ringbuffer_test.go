@@ -3,11 +3,10 @@ package internal_test
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"testing"
 
 	. "bdd.fi/x/runitor/internal"
-
-	"testing"
 )
 
 const RCap = 8
@@ -71,7 +70,7 @@ func TestRead(t *testing.T) {
 	for name, tc := range tests {
 		rb := NewRingBuffer(RCap)
 		fmt.Fprint(rb, tc.str)
-		out, err := ioutil.ReadAll(rb)
+		out, err := io.ReadAll(rb)
 		if err != nil {
 			t.Errorf("%s: read failed: %v", name, err)
 		}
@@ -85,7 +84,7 @@ func TestRead(t *testing.T) {
 func TestNoWriteAfterRead(t *testing.T) {
 	rb := NewRingBuffer(RCap)
 	rb.Write([]byte{1})
-	ioutil.ReadAll(rb)
+	io.ReadAll(rb)
 
 	_, err := rb.Write([]byte{2})
 	if err == nil || !errors.Is(err, ErrReadOnly) {

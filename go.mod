@@ -1,5 +1,5 @@
 module bdd.fi/x/runitor
 
-go 1.15
+go 1.16
 
-require github.com/tailscale/depaware v0.0.0-20200914232109-e09ee10c1824
+require github.com/tailscale/depaware v0.0.0-20201214215404-77d1e9757027

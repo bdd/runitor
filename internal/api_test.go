@@ -3,15 +3,13 @@ package internal_test
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"strings"
+	"testing"
 	"time"
 
 	. "bdd.fi/x/runitor/internal"
-
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 const TestUUID string = "test-uuid"
@@ -151,7 +149,7 @@ func TestPostURIs(t *testing.T) {
 	}
 
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := ioutil.ReadAll(r.Body)
+		body, _ := io.ReadAll(r.Body)
 		r.Body.Close()
 
 		uriPath := r.URL.Path
