@@ -15,9 +15,10 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - uses: actions/setup-go@v2
+    - uses: bdd/setup-go@main
       with:
         go-version: '>=1.5 <2'
+        version-resolver: 'dist'
 
     - name: depaware runitor
       run: go run github.com/tailscale/depaware -goos "linux,darwin,freebsd,openbsd,windows" -check bdd.fi/x/runitor/cmd/runitor
