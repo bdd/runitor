@@ -74,6 +74,22 @@ func (c *APIClient) Post(url, contentType string, body io.Reader) (resp *http.Re
 		return nil, err
 	}
 
+	// Go's net/http/request.go cannot deduce the body size if what's
+	// behind io.Reader isn't a *bytes.{Buffer,Reader} or *strings.Reader.
+	// *internal.RingBuffer merely implements the io.Reader interface, with
+	// no way of hinting available data length. This causes requests to use
+	// chunked Transfer-Encoding.
+	//
+	// Apparently Django's development server doesn't support chunked
+	// encoding but still returns HTTP 200 while the body says HTTP 400...
+	// To cater to Healthchecks private instances served this way, we do a
+	// type assertion for *internal.RingBuffer, and manually set content
+	// length. This should result a request with a Content-Length header
+	// and no Transfer-Encoding.
+	if rb, ok := body.(*RingBuffer); ok {
+		req.ContentLength = int64(rb.Len())
+	}
+
 	req.Header.Set("Content-Type", contentType)
 
 	if len(c.UserAgent) > 0 {
