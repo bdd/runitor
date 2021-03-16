@@ -65,8 +65,8 @@ func (r *RingBuffer) write(p []byte) (n int) {
 		r.idx = (r.idx + n) % r.Cap()
 	}
 
-	for cn := 0; n < len(p); {
-		cn = copy(r.buf[r.idx:], p[n:])
+	for n < len(p) {
+		cn := copy(r.buf[r.idx:], p[n:])
 		n += cn
 		r.idx = (r.idx + cn) % r.Cap()
 	}
@@ -101,13 +101,13 @@ func (r *RingBuffer) read(p []byte) (n int) {
 		goal = r.unread
 	}
 
-	for cn := 0; n < goal; {
+	for n < goal {
 		from := r.idx
 		to := from + r.unread
 		if to > r.Len() {
 			to = r.Len()
 		}
-		cn = copy(p[n:], r.buf[from:to])
+		cn := copy(p[n:], r.buf[from:to])
 		n += cn
 		r.unread -= cn
 		r.idx = (r.idx + cn) % r.Cap()
