@@ -40,7 +40,7 @@ var Version string = "HEAD"
 
 func main() {
 	var (
-		apiURL         = flag.String("api-url", internal.DefaultBaseURL, "API URL")
+		apiURL         = flag.String("api-url", internal.DefaultBaseURL, "API URL. Takes precedence over CHECK_API_URL environment variable")
 		apiRetries     = flag.Int("api-retries", internal.DefaultRetries, "Number of times an API request will be retried if it fails with a transient error")
 		_apiTries      = flag.Int("api-tries", 0, "DEPRECATED (pending removal in v1.0.0): Use -api-retries")
 		apiTimeout     = flag.Duration("api-timeout", internal.DefaultTimeout, "Client timeout per request")
@@ -68,6 +68,13 @@ func main() {
 		}
 
 		uuid = &v
+	}
+
+	if *apiURL == internal.DefaultBaseURL {
+		v, ok := os.LookupEnv("CHECK_API_URL")
+		if ok && len(v) > 0 {
+			apiURL = &v
+		}
 	}
 
 	if flag.NArg() < 1 {
