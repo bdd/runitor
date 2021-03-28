@@ -97,7 +97,7 @@ command right away and reset the interval.
 		Default value of 10KB is equal to healthchecks.io instance's
 		ping body limit.
 	-api-url="https://hc-ping.com"
-		API URL. Defaults to healthchecks.io hosted service.
+		API URL. Takes precedence over HC_API_URL environment variable. Defaults to healthchecks.io hosted service.
 	-api-retries=2
 		Number of times an API request will be retried if it fails with
 		a transient error.
