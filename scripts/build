@@ -10,9 +10,9 @@ name="runitor"
 # % go1.15beta1 download
 # % GO=go1.15beta1 ./scripts/build
 GO="${GO:-go}"
-
+CGO_ENABLED="CGO_ENABLED=${CGO_ENABLED:-0}"
 build() {
-  ${GO} build -o "${BUILD_DIR}/" ./cmd/${name}
+  env ${CGO_ENABLED} ${GO} build -o "${BUILD_DIR}/" ./cmd/${name}
 }
 
 build_dist() {
@@ -37,7 +37,7 @@ build_dist() {
   local out="${BUILD_DIR}/${name}-${ver}-${goos}-${goarch}${fn_suffix}"
 
 
-  ${GO} build -trimpath -ldflags="${ldflags}" -o "${out}" ./cmd/${name}
+  env ${CGO_ENABLED} ${GO} build -trimpath -ldflags="${ldflags}" -o "${out}" ./cmd/${name}
   echo "${out}"
 }
 
