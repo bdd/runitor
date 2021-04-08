@@ -12,7 +12,7 @@ name="runitor"
 GO="${GO:-go}"
 
 build() {
-  ${GO} build -o "${BUILD_DIR}/" ./cmd/${name}
+  CGO_ENABLED=0 ${GO} build -o "${BUILD_DIR}/" ./cmd/${name}
 }
 
 build_dist() {
@@ -37,7 +37,7 @@ build_dist() {
   local out="${BUILD_DIR}/${name}-${ver}-${goos}-${goarch}${fn_suffix}"
 
 
-  ${GO} build -trimpath -ldflags="${ldflags}" -o "${out}" ./cmd/${name}
+  CGO_ENABLED=0 ${GO} build -trimpath -ldflags="${ldflags}" -o "${out}" ./cmd/${name}
   echo "${out}"
 }
 
