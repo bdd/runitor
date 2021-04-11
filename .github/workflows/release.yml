@@ -1,32 +1,30 @@
-name: Upload Release Assets
+name: Release
 
 on:
   push:
     tags:
-      - 'v*'
+      - v[0-9]+.[0-9]+.[0-9]+*
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
       - uses: bdd/setup-go@main
         with:
-          go-version: '>=1.5 <2'
+          go-version: '>=1.16 <2'
           version-resolver: 'dist'
 
-      - name: Build
-        run: ./scripts/build dist-all
+      - run: go test ./...
 
-      - name: Test
-        run: go test ./...
+      - run: ./scripts/build dist-all
 
-      - name: Upload
-        uses: svenstaro/upload-release-action@v1-release
+      - uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref }}
+          prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
           file_glob: true
           file: build/*
           overwrite: true
