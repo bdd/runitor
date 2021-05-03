@@ -99,7 +99,7 @@ func main() {
 	client := &internal.APIClient{
 		BaseURL:   *apiURL,
 		Retries:   retries,
-		Client:    &http.Client{Timeout: *apiTimeout},
+		Client:    &http.Client{Transport: internal.DefaultTransportWithResumption, Timeout: *apiTimeout},
 		UserAgent: fmt.Sprintf("%s/%s (+%s)", Name, Version, Homepage),
 	}
 
