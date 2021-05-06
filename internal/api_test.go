@@ -174,3 +174,18 @@ func TestPostURIs(t *testing.T) {
 		}
 	}
 }
+
+// Tests if http.DefaultTransport can be type asserted to *http.Transport
+// and a TLSClientConfig is set.
+func TestNewDefaultTransportWithResumption(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panicked")
+		}
+	}()
+
+	tr := NewDefaultTransportWithResumption()
+	if tr.TLSClientConfig == nil {
+		t.Errorf("TLSClientConfig is not set")
+	}
+}

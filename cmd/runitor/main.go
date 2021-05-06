@@ -97,9 +97,12 @@ func main() {
 
 	cmd := flag.Args()
 	client := &internal.APIClient{
-		BaseURL:   *apiURL,
-		Retries:   retries,
-		Client:    &http.Client{Transport: internal.DefaultTransportWithResumption, Timeout: *apiTimeout},
+		BaseURL: *apiURL,
+		Retries: retries,
+		Client: &http.Client{
+			Transport: internal.NewDefaultTransportWithResumption(),
+			Timeout:   *apiTimeout,
+		},
 		UserAgent: fmt.Sprintf("%s/%s (+%s)", Name, Version, Homepage),
 	}
 

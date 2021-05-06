@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	urlpkg "net/url"
 	"time"
@@ -29,23 +28,20 @@ var (
 	ErrMaxTries     = errors.New("max tries reached")
 )
 
-// DefaultTransportWithResumption is the internal default implementation of
-// http.Transport with TLS Client Session Cache enabled. It is intended to be
-// used by APIClient.
-var DefaultTransportWithResumption = &http.Transport{
-	Proxy:                 http.ProxyFromEnvironment,
-	ForceAttemptHTTP2:     true,
-	MaxIdleConns:          10,
-	IdleConnTimeout:       60 * time.Second,
-	TLSHandshakeTimeout:   10 * time.Second,
-	ExpectContinueTimeout: 1 * time.Second,
-	TLSClientConfig: &tls.Config{
+// NewDefaultTransportWithResumption returns an http.Transport based on
+// http.DefaultTransport with a TLS Client Session Cache, to enable TLS session
+// resumption.
+func NewDefaultTransportWithResumption() *http.Transport {
+	t, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		panic("cannot assert DefaultTranport to *Transport")
+	}
+
+	t.TLSClientConfig = &tls.Config{
 		ClientSessionCache: tls.NewLRUClientSessionCache(1),
-	},
-	DialContext: (&net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
-	}).DialContext,
+	}
+
+	return t
 }
 
 // Pinger is the interface to Healthchecks.io pinging API
