@@ -52,15 +52,18 @@ in one process per container environments.
 
 ### Certificate Renewal
 
+	# (Using per check UUIDs.)
 	export CHECK_UUID=8116e449-d71c-4112-8f5d-a66f60902091
 	runitor -- dehydrated --cron --config example.com.conf
 
 ### Repository Maintenance
 
 	# Run the maintenance script 10 times a day (24h/10 = 2h 24m)
-
-	runitor -uuid edf72661-62ff-49e7-a921-33b41502d7e7 \
-		-every 2h24m -- /script/git-maint
+	# (Using per-project ping key, and check slugs.)
+	export HC_PING_KEY=edf72661-62ff-49e7-a921-33b41502d7e7
+	runitor -slug git-repo-maintenance \
+		-every 2h24m -- \
+		/script/git-maint
 
 ### Backup
 
@@ -89,6 +92,8 @@ command right away and reset the interval.
 
 	-uuid=""
 		UUID of check. Takes precedence over CHECK_UUID environment variable.
+	-slug=""
+		Slug of check. Requires a ping key. Takes precedence over CHECK_SLUG environment variable
 	-every="0s"
 		If non-zero, periodically run command at specified interval.
 	-quiet=false

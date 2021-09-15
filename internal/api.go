@@ -47,9 +47,9 @@ func NewDefaultTransportWithResumption() *http.Transport {
 // Pinger is the interface to Healthchecks.io pinging API
 // https://healthchecks.io/docs/http_api/
 type Pinger interface {
-	PingStart(uuid string, body io.Reader) error
-	PingSuccess(uuid string, body io.Reader) error
-	PingFailure(uuid string, body io.Reader) error
+	PingStart(handle string, body io.Reader) error
+	PingSuccess(handle string, body io.Reader) error
+	PingFailure(handle string, body io.Reader) error
 }
 
 // APIClient holds API endpoint URL, client behavior configuration, and embeds http.Client.
@@ -151,26 +151,26 @@ Try:
 	}
 }
 
-// PingStart sends a Start Ping for the check with passed uuid and attaches
+// PingStart sends a Start Ping for the check with passed check handle and attaches
 // body as the logged context.
-func (c *APIClient) PingStart(uuid string, body io.Reader) error {
-	return c.ping(uuid, body, "/start")
+func (c *APIClient) PingStart(handle string, body io.Reader) error {
+	return c.ping(handle, body, "/start")
 }
 
-// PingSuccess sends a Success Ping for the check with passed uuid and attaches
+// PingSuccess sends a Success Ping for the check with passed check handle and attaches
 // body as the logged context.
-func (c *APIClient) PingSuccess(uuid string, body io.Reader) error {
-	return c.ping(uuid, body, "")
+func (c *APIClient) PingSuccess(handle string, body io.Reader) error {
+	return c.ping(handle, body, "")
 }
 
-// PingFailure sends a Fail Ping for the check with passed uuid and attaches
+// PingFailure sends a Fail Ping for the check with passed check handle and attaches
 // body as the logged context.
-func (c *APIClient) PingFailure(uuid string, body io.Reader) error {
-	return c.ping(uuid, body, "/fail")
+func (c *APIClient) PingFailure(handle string, body io.Reader) error {
+	return c.ping(handle, body, "/fail")
 }
 
-func (c *APIClient) ping(uuid string, body io.Reader, typePath string) error {
-	u := fmt.Sprintf("%s/%s%s", c.BaseURL, uuid, typePath)
+func (c *APIClient) ping(handle string, body io.Reader, typePath string) error {
+	u := fmt.Sprintf("%s/%s%s", c.BaseURL, handle, typePath)
 
 	resp, err := c.Post(u, "text/plain", body)
 	if err != nil {
