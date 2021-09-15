@@ -38,12 +38,55 @@ const Homepage string = "https://bdd.fi/x/runitor"
 // Version is the version string that gets overridden at link time for releases.
 var Version string = "HEAD"
 
+type handleParams struct {
+	uuid, slug, pingKey string
+}
+
+// Handle composes the final check handle string to be used in the API URL
+// based on precendence or returns an error if a coexisting parameter isn't
+// passed.
+func (c *handleParams) Handle() (handle string, err error) {
+	gotUUID, gotSlug, gotPingKey := len(c.uuid) > 0, len(c.slug) > 0, len(c.pingKey) > 0
+
+	switch {
+	case gotUUID:
+		handle = c.uuid
+	case gotSlug && gotPingKey:
+		handle = c.pingKey + "/" + c.slug
+	case gotSlug:
+		err = errors.New("Must also pass ping key either with '-ping-key PK' or HC_PING_KEY environment variable")
+	case gotPingKey:
+		err = errors.New("Must also pass check slug with '-slug SL' or CHECK_SLUG environment variable")
+	default:
+		err = errors.New("Must pass either a check UUID or check slug along with project ping key.")
+
+	}
+
+	return
+}
+
+// FromFlagOrEnv is a helper to return flg if it isn't an emtpy string or look
+// up the environment variable env and return its value if it's set.
+// If neither are set returned value is an empty string.
+func FromFlagOrEnv(flg, env string) string {
+	if len(flg) == 0 {
+		v, ok := os.LookupEnv(env)
+		if ok && len(v) > 0 {
+			return v
+		}
+	}
+
+	return flg
+}
+
 func main() {
 	var (
 		apiURL         = flag.String("api-url", internal.DefaultBaseURL, "API URL. Takes precedence over HC_API_URL environment variable")
 		apiRetries     = flag.Int("api-retries", internal.DefaultRetries, "Number of times an API request will be retried if it fails with a transient error")
 		_apiTries      = flag.Int("api-tries", 0, "DEPRECATED (pending removal in v1.0.0): Use -api-retries")
 		apiTimeout     = flag.Duration("api-timeout", internal.DefaultTimeout, "Client timeout per request")
+		pingKey        = flag.String("ping-key", "", "Ping Key. Takes precedence over HC_PING_KEY environment variable")
+		slug           = flag.String("slug", "", "Slug of check. Requires a ping key. Takes precedence over CHECK_SLUG environment variable")
 		uuid           = flag.String("uuid", "", "UUID of check. Takes precedence over CHECK_UUID environment variable")
 		every          = flag.Duration("every", 0, "If non-zero, periodically run command at specified interval")
 		quiet          = flag.Bool("quiet", false, "Don't capture command's stdout")
@@ -61,15 +104,22 @@ func main() {
 		os.Exit(0)
 	}
 
-	if len(*uuid) == 0 {
-		v, ok := os.LookupEnv("CHECK_UUID")
-		if !ok || len(v) == 0 {
-			log.Fatal("Must pass check UUID either with '-uuid UUID' param or CHECK_UUID environment variable")
-		}
-
-		uuid = &v
+	ch := &handleParams{
+		uuid:    FromFlagOrEnv(*uuid, "CHECK_UUID"),
+		slug:    FromFlagOrEnv(*slug, "CHECK_SLUG"),
+		pingKey: FromFlagOrEnv(*pingKey, "HC_PING_KEY"),
+	}
+	handle, err := ch.Handle()
+	if err != nil {
+		log.Fatal(err)
 	}
 
+	// api-url flag vs HC_API_URL env var vs default value.
+	//
+	// The reason we cannot use FromFlagOrEnv() here is because we set a
+	// non-empty string default value for -api-url flag. We need to figure
+	// out if we're explicitly passed a flag or not to decide if we should
+	// read the alternate HC_API_URL environment variable.
 	urlFromArgs := false
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == "api-url" {
@@ -116,7 +166,7 @@ func main() {
 
 	// Save this invocation so we don't repeat ourselves.
 	task := func() int {
-		return Do(cmd, cfg, *uuid, client)
+		return Do(cmd, cfg, handle, client)
 	}
 
 	exitCode := task()
@@ -145,9 +195,9 @@ func main() {
 
 // Do function runs the cmd line, tees its output to terminal & ping body as configured in cfg
 // and pings the monitoring API to signal start, and then success or failure of execution.
-func Do(cmd []string, cfg RunConfig, uuid string, p internal.Pinger) (exitCode int) {
+func Do(cmd []string, cfg RunConfig, handle string, p internal.Pinger) (exitCode int) {
 	if !cfg.NoStartPing {
-		if err := p.PingStart(uuid, nil); err != nil {
+		if err := p.PingStart(handle, nil); err != nil {
 			log.Print("PingStart: ", err)
 		}
 	}
@@ -200,14 +250,14 @@ func Do(cmd []string, cfg RunConfig, uuid string, p internal.Pinger) (exitCode i
 	if exitCode != 0 {
 		fmt.Fprintf(pb, "\n[%s] Command exited with code %d.", Name, exitCode)
 
-		if err := p.PingFailure(uuid, pb); err != nil {
+		if err := p.PingFailure(handle, pb); err != nil {
 			log.Print("PingFailure: ", err)
 		}
 
 		return exitCode
 	}
 
-	if err := p.PingSuccess(uuid, pb); err != nil {
+	if err := p.PingSuccess(handle, pb); err != nil {
 		log.Print("PingSuccess: ", err)
 	}
 
