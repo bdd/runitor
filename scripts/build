@@ -70,7 +70,7 @@ if (($# > 0)); then
     dist) build_dist ;;
     dist-all) build_dist_all ;;
     *)
-      echo "usage: $0 [dist | all]" >&2
+      echo "usage: $0 [dist | dist-all]" >&2
       exit 1
       ;;
   esac
