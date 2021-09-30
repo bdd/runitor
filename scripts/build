@@ -15,6 +15,29 @@ build() {
   env ${CGO_ENABLED} ${GO} build -o "${BUILD_DIR}/" ./cmd/${name}
 }
 
+mk_sha256() {
+  local cmd
+  local artifacts_file="$1"
+
+  if type -p sha256sum; then
+    # sha256sum(1) from coreutils.
+    cmd=(sha256sum --tag)
+  elif type -p shasum; then
+    # shasum(1) in Perl; ships w/ macOS.
+    cmd=(shasum -a 256)
+  else
+    exit 69 # EX_UNAVAILABLE
+  fi
+
+  # extend the command array with artifact names
+  mapfile -t -O "${#cmd[@]}" cmd < "${artifacts_file}"
+
+  (
+    cd "$(dirname "${artifacts_file}")"
+    "${cmd[@]}" > SHA256
+  )
+}
+
 build_dist() {
   # strip symbols
   local ldflags='-s -w'
@@ -36,7 +59,6 @@ build_dist() {
 
   local out="${BUILD_DIR}/${name}-${ver}-${goos}-${goarch}${fn_suffix}"
 
-
   env ${CGO_ENABLED} ${GO} build -trimpath -ldflags="${ldflags}" -o "${out}" ./cmd/${name}
   echo "${out}"
 }
@@ -55,11 +77,15 @@ build_dist_all() {
     "windows-amd64"
   )
 
+  local artifacts_file="${BUILD_DIR}/.build-dist-all-artifacts"
   local oa plat
   for plat in "${platforms[@]}"; do
     oa=(${plat/-/ })
     GOOS="${oa[0]}" GOARCH="${oa[1]}" build_dist
-  done
+  done \
+    | xargs basename -a | tee "${artifacts_file}"
+
+  mk_sha256 "${artifacts_file}"
 }
 
 BUILD_DIR="$(git rev-parse --show-toplevel)/build"
