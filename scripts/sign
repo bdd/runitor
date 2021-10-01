@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+##
+# /!\ THIS SCRIPT IS INTENDED FOR MAINTAINER USE ONLY /!\
+##
+if (($# != 1)); then
+  echo "usage: $0 vX.X.X" >&2
+  exit 64 # EX_USAGE
+fi
+rel=${1}
+
+# MWT = Main Working Tree
+mwt=$(git worktree list --porcelain | awk '/^worktree/ { print $2; exit }')
+cd "${mwt}"
+mwt_tag=$(git describe --tag --match "v[0-9]*")
+
+worktree="${mwt}"
+if [[ ${rel} != "${mwt_tag}" ]]; then
+  worktree="${mwt}/build/worktree/${rel}"
+  rm -rf "${worktree}"
+  git worktree add "${worktree}" "tags/${rel}"
+fi
+
+dl_dir="${mwt}/build/github-release-${rel}"
+rm -rf "${dl_dir}"
+DOWNLOAD_DIR="${dl_dir}" ./scripts/dlrel "${rel}"
+chmod +x "${dl_dir}"/runitor-v*
+
+# Must match the Go version for a repoducible build.
+rel_go_ver=$(
+  find "${dl_dir}" -name "runitor-v*" -print0 \
+  | xargs -0 go version | cut -d ' ' -f 2 | sort -u
+)
+
+GO111MODULE=off go get "golang.org/dl/${rel_go_ver}"
+GO="${HOME}/go/bin/${rel_go_ver}"
+${GO} download
+
+cd "${worktree}"
+GO="${GO}" WORKTREE="${worktree}" ./scripts/build dist-all
+cd build
+if ! [[ -f SHA256 ]]; then
+  sha256sum --tag runitor-* | sort | tee SHA256
+fi
+
+# /!\ DANGER ZONE /!\
+# This is how we ensure the binaries built by GitHub action
+# runner are identical to what we built locally.
+#
+# `sha256sum` checks the hashes of release binaries against
+# the SHA256 checksum manifest of locally build binaries.
+cd "${dl_dir}"
+if ! [[ -f SHA256 ]]; then
+  sha256sum --tag runitor-* | sort | tee SHA256
+fi
+cmp <(sort SHA256) <(sort "${worktree}/build/SHA256")
+sha256sum -c SHA256
+
+# Maintainer is expected to prepare their ssh-agent with the right
+# signing key--and only that key--before running this script.
+ssh-keygen -Y sign \
+  -f <(ssh-add -L) \
+  -n 'bdd.fi/x/runitor release' \
+  SHA256
+
+echo "Created signature   ${dl_dir}/SHA256.sig"
+echo "Verifying signature ${dl_dir}/SHA256.sig"
+"${mwt}/scripts/verify" "${dl_dir}"
+
+if [[ ${worktree} != "${mwt}" ]]; then
+  git worktree remove "${worktree}"
+fi

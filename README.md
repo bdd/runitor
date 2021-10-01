@@ -10,10 +10,18 @@ or terminate with a failure.
 
 ## Installation
 
-### Download Release Binaries
+### Download Signed Release Binaries
 
 Binaries of the latest release for popular platforms are at
 https://github.com/bdd/runitor/releases/latest
+
+#### Verify Signatures
+
+SHA256 checksum manifest of the releases are signed with one of the SSH
+keys published at https://bdd.fi/x/runitor.pub.
+
+An [example verification script](scripts/verify) shows how to use `ssh-keygen`
+and `sha256sum` to verify downloads.
 
 ### Clone and Build Locally
 
