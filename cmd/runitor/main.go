@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -197,7 +198,7 @@ func main() {
 // and pings the monitoring API to signal start, and then success or failure of execution.
 func Do(cmd []string, cfg RunConfig, handle string, p internal.Pinger) (exitCode int) {
 	if !cfg.NoStartPing {
-		if err := p.PingStart(handle, nil); err != nil {
+		if err := p.PingStart(handle); err != nil {
 			log.Print("PingStart: ", err)
 		}
 	}
@@ -235,30 +236,25 @@ func Do(cmd []string, cfg RunConfig, handle string, p internal.Pinger) (exitCode
 
 	exitCode, err := Run(cmd, cmdStdout, cmdStderr)
 	if err != nil {
-		fmt.Fprintf(io.MultiWriter(os.Stderr, pb),
-			"Command execution failed: %v\n", err)
-		// Use POSIX EXIT_FAILURE (1) for cases where the specified
-		// command fails to execute.  Execution will continue and a
-		// failure ping will be sent due to non-zero exit code.
-		exitCode = 1
+		if exitCode > 0 {
+			fmt.Fprintf(pb, "\n[%s] %v", Name, err)
+		}
+
+		if exitCode == -1 {
+			// Write to host stderr and the ping buffer.
+			w := io.MultiWriter(os.Stderr, pb)
+			fmt.Fprintf(w, "[%s] %v\n", Name, err)
+			exitCode = 1
+		}
 	}
 
 	if pbr != nil && pbr.Wrapped() {
 		fmt.Fprintf(pb, "\n[%s] Output truncated to last %d bytes.", Name, cfg.PingBodyLimit)
 	}
 
-	if exitCode != 0 {
-		fmt.Fprintf(pb, "\n[%s] Command exited with code %d.", Name, exitCode)
-
-		if err := p.PingFailure(handle, pb); err != nil {
-			log.Print("PingFailure: ", err)
-		}
-
-		return exitCode
-	}
-
-	if err := p.PingSuccess(handle, pb); err != nil {
-		log.Print("PingSuccess: ", err)
+	log.Printf("PingStatus(handle=%s, exitCode=%d, body)", handle, exitCode)
+	if err := p.PingStatus(handle, exitCode, pb); err != nil {
+		log.Print("PingStatus: ", err)
 	}
 
 	return exitCode
@@ -271,20 +267,24 @@ func Run(cmd []string, stdout, stderr io.Writer) (exitCode int, err error) {
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, stdout, stderr
 
 	err = c.Run()
+	exitCode = c.ProcessState.ExitCode()
+
 	if err != nil {
-		// Convert *exec.ExitError to just exit code and no error.
-		// From our point of view, it's not really an error but a value.
 		var ee *exec.ExitError
-		if errors.As(err, &ee) {
-			return ee.ProcessState.ExitCode(), nil
+		if errors.As(err, &ee) && exitCode == -1 {
+			// Killed with a signal.
+			exitCode = 1
+			err = fmt.Errorf("%w", ee)
+			return
 		}
 	}
 
-	// Here we either have:
-	// a) we couldn't execute the command and we have a real error in our hands.
-	//    exitCode's zero value is '0' but it doesn't matter as we'll return non-nil err.
-	// b) the command ran successfully and exit with code 0.
-	//    exitCode hasn't been mutated, so its zero value of '0' is what we would like to return
-	//    anyway.
+	// On Windows applications can use any 32-bit integer as the exit code.
+	// Healthchecks.io API only allows [0-255].
+	// So we clamp it.
+	if runtime.GOOS == "windows" && exitCode > 255 {
+		exitCode = 1 // ¯\_(ツ)_/¯
+	}
+
 	return
 }
