@@ -47,9 +47,8 @@ func NewDefaultTransportWithResumption() *http.Transport {
 // Pinger is the interface to Healthchecks.io pinging API
 // https://healthchecks.io/docs/http_api/
 type Pinger interface {
-	PingStart(handle string, body io.Reader) error
-	PingSuccess(handle string, body io.Reader) error
-	PingFailure(handle string, body io.Reader) error
+	PingStart(handle string) error
+	PingStatus(handle string, exitCode int, body io.Reader) error
 }
 
 // APIClient holds API endpoint URL, client behavior configuration, and embeds http.Client.
@@ -151,26 +150,19 @@ Try:
 	}
 }
 
-// PingStart sends a Start Ping for the check with passed check handle and attaches
-// body as the logged context.
-func (c *APIClient) PingStart(handle string, body io.Reader) error {
-	return c.ping(handle, body, "/start")
+// PingStart sends a start ping for the check handle.
+func (c *APIClient) PingStart(handle string) error {
+	return c.ping(handle, "start", nil)
 }
 
-// PingSuccess sends a Success Ping for the check with passed check handle and attaches
-// body as the logged context.
-func (c *APIClient) PingSuccess(handle string, body io.Reader) error {
-	return c.ping(handle, body, "")
+// PingStatus sends the exit code of the monitored command for the check handle
+// and attaches body as the logged context.
+func (c *APIClient) PingStatus(handle string, exitCode int, body io.Reader) error {
+	return c.ping(handle, fmt.Sprintf("%d", exitCode), body)
 }
 
-// PingFailure sends a Fail Ping for the check with passed check handle and attaches
-// body as the logged context.
-func (c *APIClient) PingFailure(handle string, body io.Reader) error {
-	return c.ping(handle, body, "/fail")
-}
-
-func (c *APIClient) ping(handle string, body io.Reader, typePath string) error {
-	u := fmt.Sprintf("%s/%s%s", c.BaseURL, handle, typePath)
+func (c *APIClient) ping(handle string, path string, body io.Reader) error {
+	u := fmt.Sprintf("%s/%s/%s", c.BaseURL, handle, path)
 
 	resp, err := c.Post(u, "text/plain", body)
 	if err != nil {

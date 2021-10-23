@@ -1,18 +1,15 @@
 package internal_test
 
 import (
-	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
 	. "bdd.fi/x/runitor/internal"
 )
 
-const TestUUID string = "test-uuid"
+const TestHandle string = "pingKey/testHandle"
 
 // Tests if APIClient makes requests with the expected method, content-type,
 // and user-agent.
@@ -46,7 +43,7 @@ func TestPostRequest(t *testing.T) {
 		UserAgent: expUA,
 	}
 
-	err := c.PingSuccess(TestUUID, nil)
+	err := c.PingStatus(TestHandle, 0, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -101,7 +98,7 @@ func TestPostRetries(t *testing.T) {
 		Backoff: backoff,
 	}
 
-	err := c.PingSuccess(TestUUID, nil)
+	err := c.PingStatus(TestHandle, 0, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -129,38 +126,41 @@ func TestPostNonRetriable(t *testing.T) {
 		Client:  ts.Client(),
 	}
 
-	err := c.PingSuccess(TestUUID, nil)
+	err := c.PingStatus(TestHandle, 0, nil)
 	if err == nil {
-		t.Errorf("expected PingSuccess to return non-nil error after non-retriable API response")
+		t.Errorf("expected PingStatus to return non-nil error after non-retriable API response")
 	}
 }
 
-// Tests if Ping{Start,Success,Failure} functions hit the correct URI paths.
+// Tests if Ping{Start,Status} functions hit the correct URI paths.
 func TestPostURIs(t *testing.T) {
-	type ping func(string, io.Reader) error
+	type ping func() error
 
 	c := &APIClient{}
 
+	uriPrefix := "/" + TestHandle + "/"
 	// uriPath -> pingFunction
 	testCases := map[string]ping{
-		fmt.Sprintf("/%s/%s", TestUUID, "start"): c.PingStart,
-		fmt.Sprintf("/%s", TestUUID):             c.PingSuccess,
-		fmt.Sprintf("/%s/%s", TestUUID, "fail"):  c.PingFailure,
+		uriPrefix + "start": func() error { return c.PingStart(TestHandle) },
+		uriPrefix + "0":     func() error { return c.PingStatus(TestHandle, 0, nil) },
+		uriPrefix + "1":     func() error { return c.PingStatus(TestHandle, 1, nil) },
 	}
 
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		r.Body.Close()
-
 		uriPath := r.URL.Path
 		_, ok := testCases[uriPath]
 		if !ok {
 			t.Fatalf("Unknown URI path '%v' received", uriPath)
 		}
 
-		if string(body) != uriPath {
-			t.Errorf("Got a request for '%s' to path '%s'", body, uriPath)
-		}
+		// TODO(bdd): Find an equivalent replacement for this.
+		//            Do we really need it though?
+		//
+		// body, _ := io.ReadAll(r.Body)
+		// r.Body.Close()
+		// if string(body) != uriPath {
+		// 	t.Errorf("Got a request for '%s' to path '%s'", body, uriPath)
+		// }
 	}))
 
 	defer ts.Close()
@@ -168,8 +168,8 @@ func TestPostURIs(t *testing.T) {
 	c.BaseURL = ts.URL
 	c.Client = ts.Client()
 
-	for path, fn := range testCases {
-		if err := fn(TestUUID, strings.NewReader(path)); err != nil {
+	for _, fn := range testCases {
+		if err := fn(); err != nil {
 			t.Errorf("Ping failed: %+v", err)
 		}
 	}
