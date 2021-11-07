@@ -5,7 +5,7 @@ ALLOWED_SIGNERS_URL="https://bdd.fi/x/runitor.pub"
 SIGNER_IDENTITY="runitor"
 SIGNATURE_NAMESPACE="bdd.fi/x/runitor release"
 
-SHA256SUM=$(type -p sha256sum shasum || true | head -1)
+SHA256SUM=$(type -p sha256sum shasum | head -1 || true)
 if [[ -z ${SHA256SUM} ]]; then
   echo "couldn't find sha256sum or shasum in the PATH." >&2
   exit 69 # EX_UNAVAILABLE
