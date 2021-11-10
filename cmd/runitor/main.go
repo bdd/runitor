@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -37,7 +38,26 @@ const Name string = "runitor"
 const Homepage string = "https://bdd.fi/x/runitor"
 
 // Version is the version string that gets overridden at link time for releases.
-var Version string = "HEAD"
+// ...or gets overwritten to main module's version if the binary was installed
+// that way.
+var Version string = ""
+
+func relver() string {
+	if len(Version) == 0 {
+		if bi, ok := debug.ReadBuildInfo(); ok {
+			mainMod := &bi.Main
+			if (mainMod.Replace != nil) {
+				mainMod = mainMod.Replace
+			}
+			Version = mainMod.Version
+			// if (Version == "(devel)") {
+			// 	Version = "HEAD"
+			// }
+		}
+	}
+
+	return Version
+}
 
 type handleParams struct {
 	uuid, slug, pingKey string
@@ -101,7 +121,7 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Println(Name, Version)
+		fmt.Println(Name, relver())
 		os.Exit(0)
 	}
 
@@ -154,7 +174,7 @@ func main() {
 			Transport: internal.NewDefaultTransportWithResumption(),
 			Timeout:   *apiTimeout,
 		},
-		UserAgent: fmt.Sprintf("%s/%s (+%s)", Name, Version, Homepage),
+		UserAgent: fmt.Sprintf("%s/%s (+%s)", Name, relver(), Homepage),
 	}
 
 	cfg := RunConfig{
