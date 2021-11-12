@@ -23,13 +23,24 @@ keys published at https://bdd.fi/x/runitor.pub.
 An [example verification script](scripts/verify) shows how to use `ssh-keygen`
 and `sha256sum` to verify downloads.
 
-### Clone and Build Locally
+### Build Locally
 
-If you need to cross compile for a certain operating system and architecture
-pair, you can clone the repository and use the build script.
+If you have Go 1.16 or newer installed, you can use the command:
 
-	git clone https://github.com/bdd/runitor
-	GOOS=plan9 GOARCH=arm runitor/scripts/build dist
+	go install bdd.fi/x/runitor/cmd/runitor@latest
+
+...and the binary will be at `$GOPATH/bin/runitor` or if `GOPATH` isn't set,
+under `$HOME/go/bin/runitor`.
+
+#### Cross Compilation
+
+If you need to build the binary on a platform different than the target, you
+can pass the target operating system and architecture with GOOS and GOARCH
+environment variables to the `go install` command.
+
+	GOOS=plan9 GOARCH=arm go install bdd.fi/x/runitor/cmd/runitor@latest
+
+...and the the binary will be under `$GOPATH/bin/plan9_arm/runitor`.
 
 
 ## Why Do I Need This Instead of Calling curl from a Shell Script?
