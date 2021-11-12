@@ -71,3 +71,6 @@ echo "Verifying signature ${dl_dir}/SHA256.sig"
 if [[ ${worktree} != "${mwt}" ]]; then
   git worktree remove "${worktree}"
 fi
+
+echo "You can now add SHA256.sig to the release with:"
+echo "gh release upload ${rel} ${dl_dir}/SHA256.sig"
