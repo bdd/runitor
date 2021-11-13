@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -36,8 +37,22 @@ const Name string = "runitor"
 // Homepage is the URL to the canonical website describing this command.
 const Homepage string = "https://bdd.fi/x/runitor"
 
-// Version is the version string that gets overridden at link time for releases.
-var Version string = "HEAD"
+// Version is the version string that gets overridden at link time by the
+// release build scripts.
+//
+// If the binary was build with `go install`, main module's version will be set
+// as the value of this variable.
+var Version string = ""
+
+func RelVer() string {
+	if len(Version) == 0 {
+		if bi, ok := debug.ReadBuildInfo(); ok {
+			Version = bi.Main.Version
+		}
+	}
+
+	return Version
+}
 
 type handleParams struct {
 	uuid, slug, pingKey string
@@ -101,7 +116,7 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Println(Name, Version)
+		fmt.Println(Name, RelVer())
 		os.Exit(0)
 	}
 
@@ -154,7 +169,7 @@ func main() {
 			Transport: internal.NewDefaultTransportWithResumption(),
 			Timeout:   *apiTimeout,
 		},
-		UserAgent: fmt.Sprintf("%s/%s (+%s)", Name, Version, Homepage),
+		UserAgent: fmt.Sprintf("%s/%s (+%s)", Name, RelVer(), Homepage),
 	}
 
 	cfg := RunConfig{
