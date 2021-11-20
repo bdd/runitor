@@ -267,7 +267,6 @@ func Do(cmd []string, cfg RunConfig, handle string, p internal.Pinger) (exitCode
 		fmt.Fprintf(pb, "\n[%s] Output truncated to last %d bytes.", Name, cfg.PingBodyLimit)
 	}
 
-	log.Printf("PingStatus(handle=%s, exitCode=%d, body)", handle, exitCode)
 	if err := p.PingStatus(handle, exitCode, pb); err != nil {
 		log.Print("PingStatus: ", err)
 	}
