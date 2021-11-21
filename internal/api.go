@@ -104,6 +104,9 @@ func (c *APIClient) Post(url, contentType string, body io.Reader) (resp *http.Re
 	// and no Transfer-Encoding.
 	if rb, ok := body.(*RingBuffer); ok {
 		req.ContentLength = int64(rb.Len())
+		if req.ContentLength == 0 {
+			req.Body = http.NoBody
+		}
 	}
 
 	req.Header.Set("Content-Type", contentType)
