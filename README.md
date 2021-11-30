@@ -105,6 +105,8 @@ command right away and reset the interval.
 		UUID of check. Takes precedence over CHECK_UUID environment variable.
 	-slug=""
 		Slug of check. Requires a ping key. Takes precedence over CHECK_SLUG environment variable
+	-ping-key=""
+		Ping Key. Takes precedence over HC_PING_KEY environment variable
 	-every="0s"
 		If non-zero, periodically run command at specified interval.
 	-quiet=false
