@@ -44,7 +44,7 @@ const Homepage string = "https://bdd.fi/x/runitor"
 // as the value of this variable.
 var Version string = ""
 
-func RelVer() string {
+func releaseVersion() string {
 	if len(Version) == 0 {
 		if bi, ok := debug.ReadBuildInfo(); ok {
 			Version = bi.Main.Version
@@ -116,7 +116,7 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Println(Name, RelVer())
+		fmt.Println(Name, releaseVersion())
 		os.Exit(0)
 	}
 
@@ -169,7 +169,7 @@ func main() {
 			Transport: internal.NewDefaultTransportWithResumption(),
 			Timeout:   *apiTimeout,
 		},
-		UserAgent: fmt.Sprintf("%s/%s (+%s)", Name, RelVer(), Homepage),
+		UserAgent: fmt.Sprintf("%s/%s (+%s)", Name, releaseVersion(), Homepage),
 	}
 
 	cfg := RunConfig{
