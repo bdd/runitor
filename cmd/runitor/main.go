@@ -70,11 +70,11 @@ func (c *handleParams) Handle() (handle string, err error) {
 	case gotSlug && gotPingKey:
 		handle = c.pingKey + "/" + c.slug
 	case gotSlug:
-		err = errors.New("Must also pass ping key either with '-ping-key PK' or HC_PING_KEY environment variable")
+		err = errors.New("must also pass ping key either with '-ping-key PK' or HC_PING_KEY environment variable")
 	case gotPingKey:
-		err = errors.New("Must also pass check slug with '-slug SL' or CHECK_SLUG environment variable")
+		err = errors.New("must also pass check slug with '-slug SL' or CHECK_SLUG environment variable")
 	default:
-		err = errors.New("Must pass either a check UUID or check slug along with project ping key.")
+		err = errors.New("must pass either a check UUID or check slug along with project ping key")
 
 	}
 
