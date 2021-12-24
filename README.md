@@ -129,6 +129,8 @@ command right away and reset the interval.
 		a transient error.
 	-api-timeout="5s"
 		Client timeout per request.
+	-req-header=""
+		Additional request header as "key: value" string
 
 
 ## More on What healthchecks.io Provides

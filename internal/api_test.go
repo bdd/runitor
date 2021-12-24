@@ -175,6 +175,39 @@ func TestPostURIs(t *testing.T) {
 	}
 }
 
+// Tests additional request headers are sent.
+func TestPostReqHeaders(t *testing.T) {
+	expReqHeaders := map[string]string{
+		"foo-header": "foo-val",
+		"bar-header": "bar-val",
+		"baz-header": "baz-val",
+	}
+
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for expHeader, expVal := range expReqHeaders {
+			val := r.Header.Get(expHeader)
+			if len(val) == 0 {
+				t.Errorf("expected header %s to be set, but wasn't.", expHeader)
+			} else if val != expReqHeaders[expHeader] {
+				t.Errorf("expected header %s to be set to %s, but got %s.", expHeader, expVal, val)
+			}
+		}
+	}))
+
+	defer ts.Close()
+
+	c := &APIClient{
+		BaseURL:    ts.URL,
+		Client:     ts.Client(),
+		ReqHeaders: expReqHeaders,
+	}
+
+	err := c.PingStatus(TestHandle, 0, nil)
+	if err != nil {
+		t.Fatalf("expected successful Ping, got error: %+v", err)
+	}
+}
+
 // Tests if http.DefaultTransport can be type asserted to *http.Transport
 // and a TLSClientConfig is set.
 func TestNewDefaultTransportWithResumption(t *testing.T) {

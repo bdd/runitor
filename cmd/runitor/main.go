@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"syscall"
 	"time"
 
@@ -113,6 +114,18 @@ func main() {
 		version        = flag.Bool("version", false, "Show version")
 	)
 
+	reqHeaders := make(map[string]string)
+	flag.Func("req-header", "Additional request header as \"key: value\" string", func(s string) error {
+		kv := strings.SplitN(s, ":", 2)
+		if len(kv) != 2 {
+			return errors.New("header not in 'key: value' format")
+		}
+
+		reqHeaders[kv[0]] = kv[1]
+
+		return nil
+	})
+
 	flag.Parse()
 
 	if *version {
@@ -169,7 +182,8 @@ func main() {
 			Transport: internal.NewDefaultTransportWithResumption(),
 			Timeout:   *apiTimeout,
 		},
-		UserAgent: fmt.Sprintf("%s/%s (+%s)", Name, releaseVersion(), Homepage),
+		UserAgent:  fmt.Sprintf("%s/%s (+%s)", Name, releaseVersion(), Homepage),
+		ReqHeaders: reqHeaders,
 	}
 
 	cfg := RunConfig{

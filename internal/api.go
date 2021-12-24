@@ -68,6 +68,9 @@ type APIClient struct {
 	// Backoff is the duration used as the unit of linear backoff.
 	Backoff time.Duration
 
+	// ReqHeaders is a map of additional headers to be sent with every request.
+	ReqHeaders map[string]string
+
 	// Embed
 	*http.Client
 }
@@ -106,6 +109,12 @@ func (c *APIClient) Post(url, contentType string, body io.Reader) (resp *http.Re
 		req.ContentLength = int64(rb.Len())
 		if req.ContentLength == 0 {
 			req.Body = http.NoBody
+		}
+	}
+
+	if c.ReqHeaders != nil {
+		for k, v := range c.ReqHeaders {
+			req.Header.Set(k, v)
 		}
 	}
 
