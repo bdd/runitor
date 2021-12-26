@@ -10,6 +10,15 @@ if (($# != 1)); then
 fi
 rel=${1}
 
+if hash sha256sum 2>/dev/null; then
+  SHA256SUM="sha256sum"
+elif hash shasum 2>/dev/null; then
+  SHA256SUM="shasum -a 256"
+else
+  echo "couldn't find sha256sum or shasum in the PATH." >&2
+  exit 69 # EX_UNAVAILABLE
+fi
+
 # MWT = Main Working Tree
 mwt=$(git worktree list --porcelain | awk '/^worktree/ { print $2; exit }')
 cd "${mwt}"
@@ -41,7 +50,7 @@ cd "${worktree}"
 GO="${GO}" WORKTREE="${worktree}" ./scripts/build dist-all
 cd build
 if ! [[ -f SHA256 ]]; then
-  sha256sum --tag runitor-* | sort | tee SHA256
+  ${SHA256SUM} --tag runitor-* | sort | tee SHA256
 fi
 
 # /!\ DANGER ZONE /!\
@@ -52,10 +61,10 @@ fi
 # the SHA256 checksum manifest of locally build binaries.
 cd "${dl_dir}"
 if ! [[ -f SHA256 ]]; then
-  sha256sum --tag runitor-* | sort | tee SHA256
+  ${SHA256SUM} --tag runitor-* | sort | tee SHA256
 fi
 cmp <(sort SHA256) <(sort "${worktree}/build/SHA256")
-sha256sum -c SHA256
+${SHA256SUM} -c SHA256
 
 # Maintainer is expected to prepare their ssh-agent with the right
 # signing key--and only that key--before running this script.
