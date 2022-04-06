@@ -117,11 +117,11 @@ command right away and reset the interval.
 		Don't send start ping.
 	-no-output-in-ping=false
 		Don't send command's output in pings.
-	-ping-body-limit=10000
+	-ping-body-limit=10_000
 		If non-zero, truncate the ping body to its last N bytes,
 		including a truncation notice.
-		Default value of 10KB is equal to healthchecks.io instance's
-		ping body limit.
+		Default value for hc-ping.com instance is 100KB.
+		For everything else 10KB.
 	-api-url="https://hc-ping.com"
 		API URL. Takes precedence over HC_API_URL environment variable. Defaults to healthchecks.io hosted service.
 	-api-retries=2
@@ -144,7 +144,7 @@ command right away and reset the interval.
 
 * Pings can explicitly signal failure of execution so an alert can be send.
 
-* Pings can attach up to 10KB of logs. Runitor automatically handles truncation if needed.
+* Pings can attach up to 100KB of logs. Runitor automatically handles truncation if needed.
 
 * It can alert you via email, SMS, WhatsApp, Slack, and many more services.
 

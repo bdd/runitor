@@ -110,7 +110,7 @@ func main() {
 		silent         = flag.Bool("silent", false, "Don't capture command's stdout or stderr")
 		noStartPing    = flag.Bool("no-start-ping", false, "Don't send start ping")
 		noOutputInPing = flag.Bool("no-output-in-ping", false, "Don't send command's output in pings")
-		pingBodyLimit  = flag.Uint("ping-body-limit", 10000, "If non-zero, truncate the ping body to its last N bytes, including a truncation notice.")
+		pingBodyLimit  = flag.Uint("ping-body-limit", 10_000, "If non-zero, truncate the ping body to its last N bytes, including a truncation notice.")
 		version        = flag.Bool("version", false, "Show version")
 	)
 
@@ -160,6 +160,25 @@ func main() {
 		if v, ok := os.LookupEnv("HC_API_URL"); ok && len(v) > 0 {
 			apiURL = &v
 		}
+	}
+
+	pingBodyLimitFromArgs := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "ping-body-limit" {
+			pingBodyLimitFromArgs = true
+		}
+	})
+
+	// TODO(bdd):
+	// Conditionally increase the default ping body limit for the hosted
+	// healthchecks.io instance (hc-ping.com) unless one is explicitly
+	// passed via flags.
+	//
+	// This is temporary until a way to discover the instance limits land
+	// possibly as discussed in
+	// https://github.com/bdd/runitor/discussions/32#discussioncomment-2525494
+	if !pingBodyLimitFromArgs && *apiURL == internal.DefaultBaseURL {
+		*pingBodyLimit = 100_000
 	}
 
 	if flag.NArg() < 1 {
