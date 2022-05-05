@@ -49,14 +49,20 @@ mk_sha256() {
 }
 
 build_dist() {
-  # strip symbols
-  local ldflags='-s -w'
+  # -s: omit the symbol table and debug information
+  # -w: omit the DWARF symbol table
+  ldflags+=('-s' '-w')
 
   # embed version tag at link time
   local ver
   if ver=$(git -C "${WORKTREE}" describe --tags --match "v[0-9]*" --dirty); then
-    ldflags+=$(printf ' -X main.Version='%s'' "${ver}")
+    ldflags+=('-X' "main.Version=${ver}")
   fi
+
+  flags+=("-ldflags=\"${ldflags[*]}\"")
+
+  # reproducible builds
+  flags+=('-trimpath' '-buildvcs=false')
 
   local goos goarch
   goos=${GOOS:-$(go env GOOS)}
@@ -68,8 +74,7 @@ build_dist() {
   fi
 
   local out="${BUILD_DIR}/${name}-${ver}-${goos}-${goarch}${fn_suffix}"
-
-  env "${CGO_ENABLED}" "${GO}" build -trimpath -ldflags="${ldflags}" -o "${out}" ./cmd/${name}
+  env "${CGO_ENABLED}" "${GO}" build "${flags[@]}" -o "${out}" ./cmd/${name}
   echo "${out}"
 }
 
