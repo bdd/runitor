@@ -110,7 +110,7 @@ func main() {
 		silent         = flag.Bool("silent", false, "Don't capture command's stdout or stderr")
 		noStartPing    = flag.Bool("no-start-ping", false, "Don't send start ping")
 		noOutputInPing = flag.Bool("no-output-in-ping", false, "Don't send command's output in pings")
-		pingBodyLimit  = flag.Uint("ping-body-limit", 10000, "If non-zero, truncate the ping body to its last N bytes, including a truncation notice.")
+		pingBodyLimit  = flag.Uint("ping-body-limit", 100000, "If non-zero, truncate the ping body to its last N bytes, including a truncation notice.")
 		version        = flag.Bool("version", false, "Show version")
 	)
 
