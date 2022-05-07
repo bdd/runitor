@@ -49,9 +49,10 @@ mk_sha256() {
 }
 
 build_dist() {
+  declare -a flags ldflags
+
   # -s: omit the symbol table and debug information
-  # -w: omit the DWARF symbol table
-  ldflags+=('-s' '-w')
+  ldflags+=('-s')
 
   # embed version tag at link time
   local ver
@@ -59,7 +60,7 @@ build_dist() {
     ldflags+=('-X' "main.Version=${ver}")
   fi
 
-  flags+=("-ldflags=\"${ldflags[*]}\"")
+  flags+=("-ldflags=${ldflags[*]}")
 
   # reproducible builds
   flags+=('-trimpath' '-buildvcs=false')
