@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	urlpkg "net/url"
+	"strconv"
 	"time"
 )
 
@@ -21,6 +22,8 @@ const (
 	DefaultTimeout = 5 * time.Second
 	// Default number of retries.
 	DefaultRetries = 2
+	// Header to relay instance's ping body limit.
+	PingBodyLimitHeader = "Ping-Body-Limit"
 )
 
 var (
@@ -47,8 +50,8 @@ func NewDefaultTransportWithResumption() *http.Transport {
 // Pinger is the interface to Healthchecks.io pinging API
 // https://healthchecks.io/docs/http_api/
 type Pinger interface {
-	PingStart(handle string) error
-	PingStatus(handle string, exitCode int, body io.Reader) error
+	PingStart(handle string) (*InstanceConfig, error)
+	PingStatus(handle string, exitCode int, body io.Reader) (*InstanceConfig, error)
 }
 
 // APIClient holds API endpoint URL, client behavior configuration, and embeds http.Client.
@@ -73,6 +76,28 @@ type APIClient struct {
 
 	// Embed
 	*http.Client
+}
+
+// InstanceConfig holds the instance specific configuration parameters received
+// as HTTP headers to ping requests.
+type InstanceConfig struct {
+	PingBodyLimit Optional[uint]
+}
+
+// FromResponse populates InstanceConfig values from a ping response.
+func (c *InstanceConfig) FromResponse(resp *http.Response) {
+	strval := resp.Header.Get(PingBodyLimitHeader)
+	if len(strval) == 0 {
+		return
+	}
+
+	// uint32 should be enough for everyone(tm)
+	val, err := strconv.ParseUint(strval, 10, 32)
+	if err != nil || val < 0 {
+		return
+	}
+
+	c.PingBodyLimit = Some(uint(val))
 }
 
 // Post wraps embedded http.Client's Post to implement simple retry logic and
@@ -163,25 +188,28 @@ Try:
 }
 
 // PingStart sends a start ping for the check handle.
-func (c *APIClient) PingStart(handle string) error {
+func (c *APIClient) PingStart(handle string) (*InstanceConfig, error) {
 	return c.ping(handle, "start", nil)
 }
 
 // PingStatus sends the exit code of the monitored command for the check handle
 // and attaches body as the logged context.
-func (c *APIClient) PingStatus(handle string, exitCode int, body io.Reader) error {
+func (c *APIClient) PingStatus(handle string, exitCode int, body io.Reader) (*InstanceConfig, error) {
 	return c.ping(handle, fmt.Sprintf("%d", exitCode), body)
 }
 
-func (c *APIClient) ping(handle string, path string, body io.Reader) error {
+func (c *APIClient) ping(handle string, path string, body io.Reader) (*InstanceConfig, error) {
 	u := fmt.Sprintf("%s/%s/%s", c.BaseURL, handle, path)
 
 	resp, err := c.Post(u, "text/plain", body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	resp.Body.Close()
+	defer resp.Body.Close()
 
-	return nil
+	icfg := &InstanceConfig{}
+	icfg.FromResponse(resp)
+
+	return icfg, nil
 }

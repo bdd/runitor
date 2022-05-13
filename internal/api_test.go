@@ -43,7 +43,7 @@ func TestPostRequest(t *testing.T) {
 		UserAgent: expUA,
 	}
 
-	err := c.PingStatus(TestHandle, 0, nil)
+	_, err := c.PingStatus(TestHandle, 0, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -98,7 +98,7 @@ func TestPostRetries(t *testing.T) {
 		Backoff: backoff,
 	}
 
-	err := c.PingStatus(TestHandle, 0, nil)
+	_, err := c.PingStatus(TestHandle, 0, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -126,7 +126,7 @@ func TestPostNonRetriable(t *testing.T) {
 		Client:  ts.Client(),
 	}
 
-	err := c.PingStatus(TestHandle, 0, nil)
+	_, err := c.PingStatus(TestHandle, 0, nil)
 	if err == nil {
 		t.Errorf("expected PingStatus to return non-nil error after non-retriable API response")
 	}
@@ -134,16 +134,16 @@ func TestPostNonRetriable(t *testing.T) {
 
 // Tests if Ping{Start,Status} functions hit the correct URI paths.
 func TestPostURIs(t *testing.T) {
-	type ping func() error
+	type ping func() (*InstanceConfig, error)
 
 	c := &APIClient{}
 
 	uriPrefix := "/" + TestHandle + "/"
 	// uriPath -> pingFunction
 	testCases := map[string]ping{
-		uriPrefix + "start": func() error { return c.PingStart(TestHandle) },
-		uriPrefix + "0":     func() error { return c.PingStatus(TestHandle, 0, nil) },
-		uriPrefix + "1":     func() error { return c.PingStatus(TestHandle, 1, nil) },
+		uriPrefix + "start": func() (*InstanceConfig, error) { return c.PingStart(TestHandle) },
+		uriPrefix + "0":     func() (*InstanceConfig, error) { return c.PingStatus(TestHandle, 0, nil) },
+		uriPrefix + "1":     func() (*InstanceConfig, error) { return c.PingStatus(TestHandle, 1, nil) },
 	}
 
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -169,7 +169,7 @@ func TestPostURIs(t *testing.T) {
 	c.Client = ts.Client()
 
 	for _, fn := range testCases {
-		if err := fn(); err != nil {
+		if _, err := fn(); err != nil {
 			t.Errorf("Ping failed: %+v", err)
 		}
 	}
@@ -202,7 +202,7 @@ func TestPostReqHeaders(t *testing.T) {
 		ReqHeaders: expReqHeaders,
 	}
 
-	err := c.PingStatus(TestHandle, 0, nil)
+	_, err := c.PingStatus(TestHandle, 0, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
