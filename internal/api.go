@@ -62,7 +62,7 @@ type APIClient struct {
 	// Retries is the number of times the pinger will retry an API request
 	// if it fails with a timeout or temporary kind of error, or an HTTP
 	// status of 408 or 5XX.
-	Retries int
+	Retries uint
 
 	// UserAgent, when non-empty, is the value of 'User-Agent' HTTP header
 	// for outgoing requests.
@@ -154,7 +154,7 @@ func (c *APIClient) Post(url, contentType string, body io.Reader) (resp *http.Re
 		backoffStep = time.Second
 	}
 
-	tries := 0
+	var tries uint
 Try:
 	// Linear backoff at second granularity
 	time.Sleep(time.Duration(tries) * backoffStep)

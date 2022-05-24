@@ -99,8 +99,8 @@ func FromFlagOrEnv(flg, env string) string {
 func main() {
 	var (
 		apiURL         = flag.String("api-url", DefaultBaseURL, "API URL. Takes precedence over HC_API_URL environment variable")
-		apiRetries     = flag.Int("api-retries", DefaultRetries, "Number of times an API request will be retried if it fails with a transient error")
-		_apiTries      = flag.Int("api-tries", 0, "DEPRECATED (pending removal in v1.0.0): Use -api-retries")
+		apiRetries     = flag.Uint("api-retries", DefaultRetries, "Number of times an API request will be retried if it fails with a transient error")
+		_apiTries      = flag.Uint("api-tries", 0, "DEPRECATED (pending removal in v1.0.0): Use -api-retries")
 		apiTimeout     = flag.Duration("api-timeout", DefaultTimeout, "Client timeout per request")
 		pingKey        = flag.String("ping-key", "", "Ping Key. Takes precedence over HC_PING_KEY environment variable")
 		slug           = flag.String("slug", "", "Slug of check. Requires a ping key. Takes precedence over CHECK_SLUG environment variable")
