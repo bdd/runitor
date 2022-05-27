@@ -14,6 +14,8 @@ const TestHandle string = "pingKey/testHandle"
 // Tests if APIClient makes requests with the expected method, content-type,
 // and user-agent.
 func TestPostRequest(t *testing.T) {
+	t.Parallel()
+
 	const (
 		expMethod = "POST"
 		expCT     = "text/plain"
@@ -51,6 +53,8 @@ func TestPostRequest(t *testing.T) {
 
 // Tests if request timeout errors and HTTP 5XX responses get retried.
 func TestPostRetries(t *testing.T) {
+	t.Parallel()
+
 	const SleepToCauseTimeout = 0
 
 	if testing.Short() {
@@ -110,6 +114,8 @@ func TestPostRetries(t *testing.T) {
 
 // Tests if APIClient fails right after receiving a nonretriable error.
 func TestPostNonRetriable(t *testing.T) {
+	t.Parallel()
+
 	status := http.StatusBadRequest
 	tries := 0
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -134,6 +140,8 @@ func TestPostNonRetriable(t *testing.T) {
 
 // Tests if Ping{Start,Status} functions hit the correct URI paths.
 func TestPostURIs(t *testing.T) {
+	t.Parallel()
+
 	type ping func() (*InstanceConfig, error)
 
 	c := &APIClient{}
@@ -177,6 +185,8 @@ func TestPostURIs(t *testing.T) {
 
 // Tests additional request headers are sent.
 func TestPostReqHeaders(t *testing.T) {
+	t.Parallel()
+
 	expReqHeaders := map[string]string{
 		"foo-header": "foo-val",
 		"bar-header": "bar-val",
@@ -211,6 +221,8 @@ func TestPostReqHeaders(t *testing.T) {
 // Tests if http.DefaultTransport can be type asserted to *http.Transport
 // and a TLSClientConfig is set.
 func TestNewDefaultTransportWithResumption(t *testing.T) {
+	t.Parallel()
+
 	defer func() {
 		if r := recover(); r != nil {
 			t.Errorf("panicked")
