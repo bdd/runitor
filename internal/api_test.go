@@ -3,6 +3,7 @@ package internal_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -61,8 +62,11 @@ func TestPostRetries(t *testing.T) {
 		t.Skip("skipping retry tests with backoff in short mode.")
 	}
 
-	backoff := 5 * time.Millisecond
-	clientTimeout := backoff
+	backoff := 10 * time.Millisecond
+	// clientTimeout needs to give enough time for a slow test runner to complete a TLS handshake.
+	// May 2022: less than 25ms might not be enough for some GitHub Actions runs.
+	clientTimeout := 10 * backoff
+	sleepTime := clientTimeout + backoff
 
 	retryTests := []int{
 		SleepToCauseTimeout,
@@ -73,32 +77,33 @@ func TestPostRetries(t *testing.T) {
 		200, // must end with 200
 	}
 
-	expectedTries := len(retryTests)
+	expectedTries := uint32(len(retryTests))
+	var tries uint32
 
-	tries := 0
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if tries++; tries <= expectedTries {
-			status := retryTests[tries-1]
+		try := atomic.AddUint32(&tries, 1)
+		if try <= expectedTries {
+			status := retryTests[try-1]
 			if status == SleepToCauseTimeout {
-				time.Sleep(2 * clientTimeout)
+				time.Sleep(sleepTime)
 				return
 			}
 
 			w.WriteHeader(status)
 		} else {
-			t.Fatalf("expected client to try %d times, received %d tries", expectedTries, tries-1)
+			t.Fatalf("expected client to try %d times, received %d tries", expectedTries, try)
 		}
 	}))
 
 	defer ts.Close()
 
 	client := ts.Client()
-	client.Timeout = backoff
+	client.Timeout = clientTimeout
 
 	c := &APIClient{
 		BaseURL: ts.URL,
 		Client:  client,
-		Retries: expectedTries - 1,
+		Retries: uint(expectedTries - 1),
 		Backoff: backoff,
 	}
 
