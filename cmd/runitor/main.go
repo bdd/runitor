@@ -60,7 +60,7 @@ type handleParams struct {
 }
 
 // Handle composes the final check handle string to be used in the API URL
-// based on precendence or returns an error if a coexisting parameter isn't
+// based on precedence or returns an error if a coexisting parameter isn't
 // passed.
 func (c *handleParams) Handle() (handle string, err error) {
 	gotUUID, gotSlug, gotPingKey := len(c.uuid) > 0, len(c.slug) > 0, len(c.pingKey) > 0
@@ -76,13 +76,12 @@ func (c *handleParams) Handle() (handle string, err error) {
 		err = errors.New("must also pass check slug with '-slug SL' or CHECK_SLUG environment variable")
 	default:
 		err = errors.New("must pass either a check UUID or check slug along with project ping key")
-
 	}
 
 	return
 }
 
-// FromFlagOrEnv is a helper to return flg if it isn't an emtpy string or look
+// FromFlagOrEnv is a helper to return flg if it isn't an empty string or look
 // up the environment variable env and return its value if it's set.
 // If neither are set returned value is an empty string.
 func FromFlagOrEnv(flg, env string) string {
