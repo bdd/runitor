@@ -29,6 +29,15 @@ const (
 var (
 	ErrNonRetriable = errors.New("nonretriable error response")
 	ErrMaxTries     = errors.New("max tries reached")
+	// HTTP response codes eligible for retries.
+	RetriableResponseCodes = []int{
+		http.StatusRequestTimeout,      // 408
+		http.StatusTooManyRequests,     // 429
+		http.StatusInternalServerError, // 500
+		http.StatusBadGateway,          // 502
+		http.StatusServiceUnavailable,  // 503
+		http.StatusGatewayTimeout,      // 504
+	}
 )
 
 // NewDefaultTransportWithResumption returns an http.Transport based on
@@ -47,6 +56,16 @@ func NewDefaultTransportWithResumption() *http.Transport {
 	return t
 }
 
+func retriableResponse(code int) bool {
+	for _, i := range RetriableResponseCodes {
+		if code == i {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Pinger is the interface to Healthchecks.io pinging API
 // https://healthchecks.io/docs/http_api/
 type Pinger interface {
@@ -61,7 +80,7 @@ type APIClient struct {
 
 	// Retries is the number of times the pinger will retry an API request
 	// if it fails with a timeout or temporary kind of error, or an HTTP
-	// status of 408 or 5XX.
+	// status of 408, 429, 500, ... (see RetriableResponseCodes)
 	Retries uint
 
 	// UserAgent, when non-empty, is the value of 'User-Agent' HTTP header
@@ -179,7 +198,7 @@ Try:
 	switch {
 	case resp.StatusCode == http.StatusOK:
 		return
-	case resp.StatusCode == http.StatusRequestTimeout || (resp.StatusCode >= 500 && resp.StatusCode <= 599):
+	case retriableResponse(resp.StatusCode):
 		goto Try
 	default:
 		err = fmt.Errorf("%w: %s", ErrNonRetriable, resp.Status)

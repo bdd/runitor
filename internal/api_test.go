@@ -68,14 +68,9 @@ func TestPostRetries(t *testing.T) {
 	clientTimeout := 10 * backoff
 	sleepTime := clientTimeout + backoff
 
-	retryTests := []int{
-		SleepToCauseTimeout,
-		http.StatusRequestTimeout,
-		500,
-		599,
-		SleepToCauseTimeout,
-		200, // must end with 200
-	}
+	retryTests := []int{SleepToCauseTimeout}                   // sleep
+	retryTests = append(retryTests, RetriableResponseCodes...) // all retriable response codes
+	retryTests = append(retryTests, http.StatusOK)             // MUST end with OK
 
 	expectedTries := uint32(len(retryTests))
 	var tries uint32
