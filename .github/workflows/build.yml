@@ -9,6 +9,8 @@ on:
     branches:
       - '*'
 
+permissions: {}
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest

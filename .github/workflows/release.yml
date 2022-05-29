@@ -5,9 +5,17 @@ on:
     tags:
       - v[0-9]+.[0-9]+.[0-9]+*
 
+permissions: {}
+
 jobs:
   release:
     runs-on: ubuntu-latest
+
+    permissions:
+      # "/repos/:owner/:repo/releases" is gated by "contents" permission.
+      # https://docs.github.com/en/rest/overview/permissions-required-for-github-apps#permission-on-contents
+      contents: write
+
     steps:
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
 
