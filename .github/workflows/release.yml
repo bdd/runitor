@@ -16,7 +16,7 @@ jobs:
           go-version-file: 'go.mod'
           check-latest: true
 
-      - run: go test ./...
+      - run: go test -race ./...
 
       - run: ./scripts/build dist-all
 
