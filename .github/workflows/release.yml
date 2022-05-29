@@ -9,9 +9,9 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923
         with:
           go-version-file: 'go.mod'
           check-latest: true
@@ -20,7 +20,7 @@ jobs:
 
       - run: ./scripts/build dist-all
 
-      - uses: svenstaro/upload-release-action@v2
+      - uses: svenstaro/upload-release-action@c2b649c57ea652f7011a52950438ba6de235be33
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref }}
