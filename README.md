@@ -40,7 +40,7 @@ environment variables to the `go install` command.
 
 	GOOS=plan9 GOARCH=arm go install bdd.fi/x/runitor/cmd/runitor@latest
 
-...and the the binary will be under `$GOPATH/bin/plan9_arm/runitor`.
+...and the binary will be under `$GOPATH/bin/plan9_arm/runitor`.
 
 
 ## Why Do I Need This Instead of Calling curl from a Shell Script?
