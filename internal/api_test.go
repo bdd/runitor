@@ -62,11 +62,11 @@ func TestPostRetries(t *testing.T) {
 		t.Skip("skipping retry tests with backoff in short mode.")
 	}
 
-	backoff := 10 * time.Millisecond
+	backoff := 1 * time.Millisecond
 	// clientTimeout needs to give enough time for a slow test runner to complete a TLS handshake.
 	// May 2022: less than 25ms might not be enough for some GitHub Actions runs.
-	clientTimeout := 10 * backoff
-	sleepTime := clientTimeout + backoff
+	clientTimeout := 200 * time.Millisecond
+	sleepTime := clientTimeout
 
 	retryTests := []int{SleepToCauseTimeout}                   // sleep
 	retryTests = append(retryTests, RetriableResponseCodes...) // all retriable response codes
