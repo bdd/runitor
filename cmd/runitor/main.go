@@ -237,9 +237,7 @@ func Do(cmd []string, cfg RunConfig, handle string, p Pinger) (exitCode int) {
 		icfg, err := p.PingStart(handle)
 		if err != nil {
 			log.Print("PingStart: ", err)
-		}
-
-		if instanceLimit, ok := icfg.PingBodyLimit.Get(); ok {
+		} else if instanceLimit, ok := icfg.PingBodyLimit.Get(); ok {
 			if cfg.PingBodyLimitIsExplicit {
 				// Command line flag `-ping-body-limit` was used and
 				// the service instance returned a `Ping-Body-Limit` header.
