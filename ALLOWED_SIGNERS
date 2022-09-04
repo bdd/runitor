@@ -1,0 +1,15 @@
+# Public keys for Git commit signing with SSH
+#
+# Setup:
+# git config --local gpg.format ssh
+# git config --local gpg.ssh.allowedsignersfile ALLOWED_SIGNERS
+# git config --local gpg.ssh.defaultkeycommand scripts/git-ssh-signing-key-command
+# git config --local commit.gpgsign true
+# git config --local tag.gpgsign true
+#
+# Berk D. Demir
+* sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAILyO6PKV+w/wMYSrsRiR02HBQQPU1cDAiN9YzB5WfdLjAAAABHNzaDo=
+* sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIJ8lhbbYseBQLm3NN1RVoMSjHB2SXtOOzNo4EF/NvthlAAAABHNzaDo=
+* sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIF0MpHXmi+hHoQTKnV4m5NW4VK4suXraVhfA5K94TeDkAAAABHNzaDo=
+* sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIGTkTyxD3Q3+g+J4rt8xLmzYPk7VFPv56Rk+EaDRix7pAAAABHNzaDo=
+* sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIA3QefVTC6YQ80HEXuBtGHLEFWTVOC/G4DEkKMfVKIF/AAAABHNzaDo=

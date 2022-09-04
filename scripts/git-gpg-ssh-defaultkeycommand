@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mapfile -t < <(ssh-add -L | cut -d ' ' -f 1,2)
+if [[ "${MAPFILE[0]}" == "The agent has no identities." ]]; then
+  exit 1
+fi
+
+for key in "${MAPFILE[@]}"; do
+  if grep -q " ${key}" ALLOWED_SIGNERS; then
+    echo "key::${key}"
+    exit
+  fi
+done
+
+echo "no key in the agent is listed in ALLOWED_SIGNERS" >&2
+exit 1
