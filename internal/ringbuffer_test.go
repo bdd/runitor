@@ -86,8 +86,7 @@ func TestNoWriteAfterRead(t *testing.T) {
 	rb.Write([]byte{1})
 	io.ReadAll(rb)
 
-	_, err := rb.Write([]byte{2})
-	if err == nil || !errors.Is(err, ErrReadOnly) {
+	if _, err := rb.Write([]byte{2}); err == nil || !errors.Is(err, ErrReadOnly) {
 		t.Errorf("expected ring buffer to become read only after first read and receive ErrReadOnly but got err '%v'", err)
 	}
 }

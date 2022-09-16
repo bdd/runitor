@@ -112,7 +112,7 @@ func (c *InstanceConfig) FromResponse(resp *http.Response) {
 
 	// uint32 should be enough for everyone(tm)
 	val, err := strconv.ParseUint(strval, 10, 32)
-	if err != nil || val < 0 {
+	if err != nil {
 		return
 	}
 

@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	. "bdd.fi/x/runitor/internal"
+	. "bdd.fi/x/runitor/internal" //lint:ignore ST1001 internal
 )
 
 // RunConfig sets the behavior of a run.
