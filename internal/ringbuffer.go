@@ -1,3 +1,5 @@
+// Copyright 2020 - 2022, Berk D. Demir and the runitor contributors
+// SPDX-License-Identifier: OBSD
 package internal
 
 import (
