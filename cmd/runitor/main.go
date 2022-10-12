@@ -24,12 +24,15 @@ import (
 
 // RunConfig sets the behavior of a run.
 type RunConfig struct {
-	Quiet                   bool // No cmd stdout
-	Silent                  bool // No cmd stdout or stderr
-	NoStartPing             bool // Don't send Start ping
-	NoOutputInPing          bool // Don't send command std{out, err} with Success and Failure pings
-	PingBodyLimitIsExplicit bool // Explicit limit via flags
-	PingBodyLimit           uint // Truncate ping body to last N bytes
+	Quiet                   bool     // No cmd stdout
+	Silent                  bool     // No cmd stdout or stderr
+	NoStartPing             bool     // Don't send Start ping
+	NoOutputInPing          bool     // Don't send command std{out, err} with Success and Failure pings
+	PingBodyLimitIsExplicit bool     // Explicit limit via flags
+	PingBodyLimit           uint     // Truncate ping body to last N bytes
+	OnSuccess               PingType // Ping type to send when command exits successfully
+	OnNonzeroExit           PingType // Ping type to send when command exits with a nonzero code
+	OnExecFail              PingType // Ping type to send when runitor cannot execute the command
 }
 
 // Globals used for building help and identification strings.
@@ -109,6 +112,9 @@ func main() {
 		every          = flag.Duration("every", 0, "If non-zero, periodically run command at specified interval")
 		quiet          = flag.Bool("quiet", false, "Don't capture command's stdout")
 		silent         = flag.Bool("silent", false, "Don't capture command's stdout or stderr")
+		onSuccess      = pingTypeFlag("on-success", PingTypeSuccess, "Ping type to send when command exits successfully")
+		onNonzeroExit  = pingTypeFlag("on-nonzero-exit", PingTypeExitCode, "Ping type to send when command exits with a nonzero code")
+		onExecFail     = pingTypeFlag("on-exec-fail", PingTypeFail, "Ping type to send when runitor cannot execute the command")
 		noStartPing    = flag.Bool("no-start-ping", false, "Don't send start ping")
 		noOutputInPing = flag.Bool("no-output-in-ping", false, "Don't send command's output in pings")
 		pingBodyLimit  = flag.Uint("ping-body-limit", 10_000, "If non-zero, truncate the ping body to its last N bytes, including a truncation notice.")
@@ -201,6 +207,9 @@ func main() {
 		NoOutputInPing:          *noOutputInPing,
 		PingBodyLimitIsExplicit: pingBodyLimitFromArgs,
 		PingBodyLimit:           *pingBodyLimit,
+		OnSuccess:               *onSuccess,
+		OnNonzeroExit:           *onNonzeroExit,
+		OnExecFail:              *onExecFail,
 	}
 
 	// Save this invocation so we don't repeat ourselves.
@@ -232,13 +241,15 @@ func main() {
 	}
 }
 
-// Do function runs the cmd line, tees its output to terminal & ping body as configured in cfg
-// and pings the monitoring API to signal start, and then success or failure of execution.
-func Do(cmd []string, cfg RunConfig, handle string, p Pinger) (exitCode int) {
+// Do function runs the cmd line, tees its output to terminal & ping body as
+// configured in cfg and pings the monitoring API to signal start, and then
+// success or failure of execution. Returns the exit code from the ran command
+// unless execution has failed, in such case 1 is returned.
+func Do(cmd []string, cfg RunConfig, handle string, p Pinger) int {
 	if !cfg.NoStartPing {
 		icfg, err := p.PingStart(handle)
 		if err != nil {
-			log.Print("PingStart: ", err)
+			log.Print("Ping(start): ", err)
 		} else if instanceLimit, ok := icfg.PingBodyLimit.Get(); ok {
 			if cfg.PingBodyLimitIsExplicit {
 				// Command line flag `-ping-body-limit` was used and
@@ -290,25 +301,46 @@ func Do(cmd []string, cfg RunConfig, handle string, p Pinger) (exitCode int) {
 	}
 
 	exitCode, err := Run(cmd, cmdStdout, cmdStderr)
-	if err != nil {
-		if exitCode > 0 {
-			fmt.Fprintf(pb, "\n[%s] %v", Name, err)
-		}
+	var ping PingType
+	switch {
+	case exitCode == 0 && err == nil:
+		ping = cfg.OnSuccess
 
-		if exitCode == -1 {
-			// Write to host stderr and the ping buffer.
-			w := io.MultiWriter(os.Stderr, pb)
-			fmt.Fprintf(w, "[%s] %v\n", Name, err)
-			exitCode = 1
-		}
+	case exitCode > 0 && err != nil:
+		// Successfully executed the command.
+		// Command exited with nonzero code.
+		fmt.Fprintf(pb, "\n[%s] %v", Name, err)
+		ping = cfg.OnNonzeroExit
+
+	case exitCode == -1 && err != nil:
+		// Could not execute the command.
+		// Write to host stderr and the ping body.
+		w := io.MultiWriter(os.Stderr, pb)
+		fmt.Fprintf(w, "[%s] %v\n", Name, err)
+		ping = cfg.OnExecFail
+		exitCode = 1
 	}
 
 	if pbr != nil && pbr.Wrapped() {
 		fmt.Fprintf(pb, "\n[%s] Output truncated to last %d bytes.", Name, cfg.PingBodyLimit)
 	}
 
-	if _, err := p.PingStatus(handle, exitCode, pb); err != nil {
-		log.Print("PingStatus: ", err)
+	switch ping {
+	case PingTypeSuccess:
+		_, err = p.PingSuccess(handle, pb)
+	case PingTypeFail:
+		_, err = p.PingFail(handle, pb)
+	case PingTypeLog:
+		_, err = p.PingLog(handle, pb)
+	default:
+		// A safe default: PingExitCode
+		// It's too late error out here.
+		// Command got executed. We need to deliver a ping.
+		_, err = p.PingExitCode(handle, exitCode, pb)
+	}
+
+	if err != nil {
+		log.Printf("Ping(%s): %v\n", ping.String(), err)
 	}
 
 	return exitCode
