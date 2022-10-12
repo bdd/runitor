@@ -5,6 +5,7 @@ package internal_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -48,7 +49,7 @@ func TestPostRequest(t *testing.T) {
 		UserAgent: expUA,
 	}
 
-	_, err := c.PingStatus(TestHandle, 0, nil)
+	_, err := c.PingSuccess(TestHandle, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -104,7 +105,7 @@ func TestPostRetries(t *testing.T) {
 		Backoff: backoff,
 	}
 
-	_, err := c.PingStatus(TestHandle, 0, nil)
+	_, err := c.PingSuccess(TestHandle, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -134,13 +135,13 @@ func TestPostNonRetriable(t *testing.T) {
 		Client:  ts.Client(),
 	}
 
-	_, err := c.PingStatus(TestHandle, 0, nil)
+	_, err := c.PingSuccess(TestHandle, nil)
 	if err == nil {
-		t.Errorf("expected PingStatus to return non-nil error after non-retriable API response")
+		t.Errorf("expected PingSuccess to return non-nil error after non-retriable API response")
 	}
 }
 
-// Tests if Ping{Start,Status} functions hit the correct URI paths.
+// Tests if Ping{Start,Log,Status} functions hit the correct URI paths.
 func TestPostURIs(t *testing.T) {
 	t.Parallel()
 
@@ -148,19 +149,19 @@ func TestPostURIs(t *testing.T) {
 
 	c := &APIClient{}
 
-	uriPrefix := "/" + TestHandle + "/"
-	// uriPath -> pingFunction
 	testCases := map[string]ping{
-		uriPrefix + "start": func() (*InstanceConfig, error) { return c.PingStart(TestHandle) },
-		uriPrefix + "0":     func() (*InstanceConfig, error) { return c.PingStatus(TestHandle, 0, nil) },
-		uriPrefix + "1":     func() (*InstanceConfig, error) { return c.PingStatus(TestHandle, 1, nil) },
+		"/start": func() (*InstanceConfig, error) { return c.PingStart(TestHandle) },
+		"":       func() (*InstanceConfig, error) { return c.PingSuccess(TestHandle, nil) },
+		"/fail":  func() (*InstanceConfig, error) { return c.PingFail(TestHandle, nil) },
+		"/log":   func() (*InstanceConfig, error) { return c.PingLog(TestHandle, nil) },
+		"/42":    func() (*InstanceConfig, error) { return c.PingExitCode(TestHandle, 42, nil) },
 	}
 
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		uriPath := r.URL.Path
-		_, ok := testCases[uriPath]
+		tail := strings.TrimPrefix(r.URL.Path, "/"+TestHandle)
+		_, ok := testCases[tail]
 		if !ok {
-			t.Fatalf("Unknown URI path '%v' received", uriPath)
+			t.Fatalf("Unexpected request to URL path '%v'", r.URL.Path)
 		}
 
 		// TODO(bdd): Find an equivalent replacement for this.
@@ -214,7 +215,7 @@ func TestPostReqHeaders(t *testing.T) {
 		ReqHeaders: expReqHeaders,
 	}
 
-	_, err := c.PingStatus(TestHandle, 0, nil)
+	_, err := c.PingSuccess(TestHandle, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
