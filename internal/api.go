@@ -73,7 +73,10 @@ func retriableResponse(code int) bool {
 // https://healthchecks.io/docs/http_api/
 type Pinger interface {
 	PingStart(handle string) (*InstanceConfig, error)
-	PingStatus(handle string, exitCode int, body io.Reader) (*InstanceConfig, error)
+	PingLog(handle string, body io.Reader) (*InstanceConfig, error)
+	PingSuccess(handle string, body io.Reader) (*InstanceConfig, error)
+	PingFail(handle string, body io.Reader) (*InstanceConfig, error)
+	PingExitCode(handle string, exitCode int, body io.Reader) (*InstanceConfig, error)
 }
 
 // APIClient holds API endpoint URL, client behavior configuration, and embeds http.Client.
@@ -217,14 +220,35 @@ func (c *APIClient) PingStart(handle string) (*InstanceConfig, error) {
 	return c.ping(handle, "start", nil)
 }
 
-// PingStatus sends the exit code of the monitored command for the check handle
+// PingSuccess sends a success ping for the check handle and attaches body as
+// the logged context.
+func (c *APIClient) PingSuccess(handle string, body io.Reader) (*InstanceConfig, error) {
+	return c.ping(handle, "", body)
+}
+
+// PingFail sends a failure ping for the check handle and attaches body as the
+// logged context.
+func (c *APIClient) PingFail(handle string, body io.Reader) (*InstanceConfig, error) {
+	return c.ping(handle, "fail", body)
+}
+
+// PingLog sends a logging only ping for the check handle and attaches body as
+// the logged context.
+func (c *APIClient) PingLog(handle string, body io.Reader) (*InstanceConfig, error) {
+	return c.ping(handle, "log", body)
+}
+
+// PingExitCode sends the exit code of the monitored command for the check handle
 // and attaches body as the logged context.
-func (c *APIClient) PingStatus(handle string, exitCode int, body io.Reader) (*InstanceConfig, error) {
+func (c *APIClient) PingExitCode(handle string, exitCode int, body io.Reader) (*InstanceConfig, error) {
 	return c.ping(handle, fmt.Sprintf("%d", exitCode), body)
 }
 
 func (c *APIClient) ping(handle string, path string, body io.Reader) (*InstanceConfig, error) {
-	u := fmt.Sprintf("%s/%s/%s", c.BaseURL, handle, path)
+	u := c.BaseURL + "/" + handle
+	if len(path) > 0 {
+		u += "/" + path
+	}
 
 	resp, err := c.Post(u, "text/plain", body)
 	if err != nil {
