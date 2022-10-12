@@ -26,6 +26,7 @@ import (
 type RunConfig struct {
 	Quiet                   bool // No cmd stdout
 	Silent                  bool // No cmd stdout or stderr
+	LogOnlyNonZero          bool // Send log pings instead of failure for non-zero exit status
 	NoStartPing             bool // Don't send Start ping
 	NoOutputInPing          bool // Don't send command std{out, err} with Success and Failure pings
 	PingBodyLimitIsExplicit bool // Explicit limit via flags
@@ -109,6 +110,7 @@ func main() {
 		every          = flag.Duration("every", 0, "If non-zero, periodically run command at specified interval")
 		quiet          = flag.Bool("quiet", false, "Don't capture command's stdout")
 		silent         = flag.Bool("silent", false, "Don't capture command's stdout or stderr")
+		logOnlyNonZero = flag.Bool("log-only-non-zero", false, "Send log pings instead of failure if the command exits with a non-zero status")
 		noStartPing    = flag.Bool("no-start-ping", false, "Don't send start ping")
 		noOutputInPing = flag.Bool("no-output-in-ping", false, "Don't send command's output in pings")
 		pingBodyLimit  = flag.Uint("ping-body-limit", 10_000, "If non-zero, truncate the ping body to its last N bytes, including a truncation notice.")
@@ -197,6 +199,7 @@ func main() {
 	cfg := RunConfig{
 		Quiet:                   *quiet || *silent,
 		Silent:                  *silent,
+		LogOnlyNonZero:          *logOnlyNonZero,
 		NoStartPing:             *noStartPing,
 		NoOutputInPing:          *noOutputInPing,
 		PingBodyLimitIsExplicit: pingBodyLimitFromArgs,
@@ -289,13 +292,14 @@ func Do(cmd []string, cfg RunConfig, handle string, p Pinger) (exitCode int) {
 		cmdStderr = mw
 	}
 
-	exitCode, err := Run(cmd, cmdStdout, cmdStderr)
+	cmdExitStatus, err := Run(cmd, cmdStdout, cmdStderr)
 	if err != nil {
-		if exitCode > 0 {
+		if cmdExitStatus > 0 {
 			fmt.Fprintf(pb, "\n[%s] %v", Name, err)
+			exitCode = cmdExitStatus
 		}
 
-		if exitCode == -1 {
+		if cmdExitStatus == -1 {
 			// Write to host stderr and the ping buffer.
 			w := io.MultiWriter(os.Stderr, pb)
 			fmt.Fprintf(w, "[%s] %v\n", Name, err)
@@ -307,8 +311,15 @@ func Do(cmd []string, cfg RunConfig, handle string, p Pinger) (exitCode int) {
 		fmt.Fprintf(pb, "\n[%s] Output truncated to last %d bytes.", Name, cfg.PingBodyLimit)
 	}
 
-	if _, err := p.PingStatus(handle, exitCode, pb); err != nil {
-		log.Print("PingStatus: ", err)
+	err = nil
+	if cmdExitStatus > 0 && cfg.LogOnlyNonZero {
+		if _, err = p.PingLog(handle, pb); err != nil {
+			log.Print("PingLog: ", err)
+		}
+	} else {
+		if _, err := p.PingStatus(handle, exitCode, pb); err != nil {
+			log.Print("PingStatus: ", err)
+		}
 	}
 
 	return exitCode

@@ -73,6 +73,7 @@ func retriableResponse(code int) bool {
 // https://healthchecks.io/docs/http_api/
 type Pinger interface {
 	PingStart(handle string) (*InstanceConfig, error)
+	PingLog(handle string, body io.Reader) (*InstanceConfig, error)
 	PingStatus(handle string, exitCode int, body io.Reader) (*InstanceConfig, error)
 }
 
@@ -212,6 +213,12 @@ Try:
 // PingStart sends a start ping for the check handle.
 func (c *APIClient) PingStart(handle string) (*InstanceConfig, error) {
 	return c.ping(handle, "start", nil)
+}
+
+// PingLog sends a logging only ping for the check handle and attaches body as
+// the logged context.
+func (c *APIClient) PingLog(handle string, body io.Reader) (*InstanceConfig, error) {
+	return c.ping(handle, "log", body)
 }
 
 // PingStatus sends the exit code of the monitored command for the check handle

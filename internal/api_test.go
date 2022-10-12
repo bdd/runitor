@@ -140,7 +140,7 @@ func TestPostNonRetriable(t *testing.T) {
 	}
 }
 
-// Tests if Ping{Start,Status} functions hit the correct URI paths.
+// Tests if Ping{Start,Log,Status} functions hit the correct URI paths.
 func TestPostURIs(t *testing.T) {
 	t.Parallel()
 
@@ -152,6 +152,7 @@ func TestPostURIs(t *testing.T) {
 	// uriPath -> pingFunction
 	testCases := map[string]ping{
 		uriPrefix + "start": func() (*InstanceConfig, error) { return c.PingStart(TestHandle) },
+		uriPrefix + "log":   func() (*InstanceConfig, error) { return c.PingLog(TestHandle, nil) },
 		uriPrefix + "0":     func() (*InstanceConfig, error) { return c.PingStatus(TestHandle, 0, nil) },
 		uriPrefix + "1":     func() (*InstanceConfig, error) { return c.PingStatus(TestHandle, 1, nil) },
 	}
