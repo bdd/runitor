@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Copyright 2020 - 2022, Berk D. Demir and the runitor contributors
+# SPDX-License-Identifier: OBSD
+set -euo pipefail
+
+if (($# != 1)); then
+  echo "usage: $0 vX.X.X" >&2
+  exit 64 # EX_USAGE
+fi
+
+tag=$1
+HERE="$(cd "$(dirname "$0")"; pwd -P)"
+BUILD_DIR=$(git rev-parse --show-toplevel)/build/rel-${tag}
+
+git tag -a "${tag}"
+
+if [[ -d ${BUILD_DIR} ]]; then rm -r "${BUILD_DIR}"; fi
+GO=latest BUILD_DIR=${BUILD_DIR} "${HERE}"/build dist-all
+
+"${HERE}"/sign "${BUILD_DIR}"
+
+"${HERE}"/verify "${BUILD_DIR}"
+
+# Release and upload assets.
+prerelease=""
+if [[ ${tag} =~ -(alpha|beta|rc)\.[0-9] ]]; then
+  prerelease="--prerelease"
+fi
+
+gh release create "${tag}" "${prerelease}" "${BUILD_DIR}"/*

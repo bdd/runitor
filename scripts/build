@@ -16,11 +16,27 @@ mkdir -p "${BUILD_DIR}"
 
 # Allow specifying alternate Go version to be used for build.
 #
-# Example usage:
-# % go get golang.org/dl/go1.15beta1
-# % go1.15beta1 download
-# % GO=go1.15beta1 ./scripts/build
+# If desired version in `goX.Y.Z` is not in PATH, it's downloaded.
+# Symbolic name "lastest" is resolved to latest Go version from a well-known
+# URL.
+#
+# Go's executable install directory ($GOBIN -> $GOPATH/bin -> $HOME/go/bin)
+# _must_ be in the PATH.
 GO="${GO:-go}"
+if [[ ${GO} != "go" ]]; then
+  if [[ ${GO} == "latest" ]]; then
+    GO=$(curl -LSsf 'https://go.dev/VERSION?m=text' | grep -E '^go[0-9.]+$')
+  fi
+
+  if [[ ${GO} == $(go env GOVERSION) ]]; then
+    # wanted go version is the default go.
+    GO=go
+  elif ! type -p "${GO}"; then
+    go install "golang.org/dl/${GO}@latest"
+    "${GO}" download
+  fi
+fi
+
 CGO_ENABLED="CGO_ENABLED=${CGO_ENABLED:-0}"
 
 build() {
@@ -79,7 +95,7 @@ build_dist() {
   fi
 
   local out="${BUILD_DIR}/${name}-${ver}-${goos}-${goarch}${fn_suffix}"
-  env "${CGO_ENABLED}" "${GO}" build "${flags[@]}" -o "${out}" ./cmd/${name}
+  env "${CGO_ENABLED}" "${GO}" build "${flags[@]}" -o "${out}" ${WORKTREE}/cmd/${name}
   echo "${out}"
 }
 

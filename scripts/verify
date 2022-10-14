@@ -28,11 +28,6 @@ releasedir="${1-${PWD}}"
 (
   cd "${releasedir}"
 
-  if ! [[ -f SHA256 && -f SHA256.sig ]]; then
-    echo "release dir (${releasedir}) is missing SHA256 and SHA256.sig files." >&2
-    exit 1
-  fi
-
   ssh-keygen -Y verify \
     -I "${SIGNER_IDENTITY}" \
     -n "${SIGNATURE_NAMESPACE}" \
