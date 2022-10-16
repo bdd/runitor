@@ -101,25 +101,23 @@ func FromFlagOrEnv(flg, env string) string {
 }
 
 func main() {
-	var (
-		apiURL         = flag.String("api-url", DefaultBaseURL, "API URL. Takes precedence over HC_API_URL environment variable")
-		apiRetries     = flag.Uint("api-retries", DefaultRetries, "Number of times an API request will be retried if it fails with a transient error")
-		_apiTries      = flag.Uint("api-tries", 0, "DEPRECATED (pending removal in v1.0.0): Use -api-retries")
-		apiTimeout     = flag.Duration("api-timeout", DefaultTimeout, "Client timeout per request")
-		pingKey        = flag.String("ping-key", "", "Ping Key. Takes precedence over HC_PING_KEY environment variable")
-		slug           = flag.String("slug", "", "Slug of check. Requires a ping key. Takes precedence over CHECK_SLUG environment variable")
-		uuid           = flag.String("uuid", "", "UUID of check. Takes precedence over CHECK_UUID environment variable")
-		every          = flag.Duration("every", 0, "If non-zero, periodically run command at specified interval")
-		quiet          = flag.Bool("quiet", false, "Don't capture command's stdout")
-		silent         = flag.Bool("silent", false, "Don't capture command's stdout or stderr")
-		onSuccess      = pingTypeFlag("on-success", PingTypeSuccess, "Ping type to send when command exits successfully")
-		onNonzeroExit  = pingTypeFlag("on-nonzero-exit", PingTypeExitCode, "Ping type to send when command exits with a nonzero code")
-		onExecFail     = pingTypeFlag("on-exec-fail", PingTypeFail, "Ping type to send when runitor cannot execute the command")
-		noStartPing    = flag.Bool("no-start-ping", false, "Don't send start ping")
-		noOutputInPing = flag.Bool("no-output-in-ping", false, "Don't send command's output in pings")
-		pingBodyLimit  = flag.Uint("ping-body-limit", 10_000, "If non-zero, truncate the ping body to its last N bytes, including a truncation notice.")
-		version        = flag.Bool("version", false, "Show version")
-	)
+	apiURL := flag.String("api-url", DefaultBaseURL, "API URL. Takes precedence over HC_API_URL environment variable")
+	apiRetries := flag.Uint("api-retries", DefaultRetries, "Number of times an API request will be retried if it fails with a transient error")
+	_apiTries := flag.Uint("api-tries", 0, "DEPRECATED (pending removal in v1.0.0): Use -api-retries")
+	apiTimeout := flag.Duration("api-timeout", DefaultTimeout, "Client timeout per request")
+	pingKey := flag.String("ping-key", "", "Ping Key. Takes precedence over HC_PING_KEY environment variable")
+	slug := flag.String("slug", "", "Slug of check. Requires a ping key. Takes precedence over CHECK_SLUG environment variable")
+	uuid := flag.String("uuid", "", "UUID of check. Takes precedence over CHECK_UUID environment variable")
+	every := flag.Duration("every", 0, "If non-zero, periodically run command at specified interval")
+	quiet := flag.Bool("quiet", false, "Don't capture command's stdout")
+	silent := flag.Bool("silent", false, "Don't capture command's stdout or stderr")
+	onSuccess := pingTypeFlag("on-success", PingTypeSuccess, "Ping type to send when command exits successfully")
+	onNonzeroExit := pingTypeFlag("on-nonzero-exit", PingTypeExitCode, "Ping type to send when command exits with a nonzero code")
+	onExecFail := pingTypeFlag("on-exec-fail", PingTypeFail, "Ping type to send when runitor cannot execute the command")
+	noStartPing := flag.Bool("no-start-ping", false, "Don't send start ping")
+	noOutputInPing := flag.Bool("no-output-in-ping", false, "Don't send command's output in pings")
+	pingBodyLimit := flag.Uint("ping-body-limit", 10_000, "If non-zero, truncate the ping body to its last N bytes, including a truncation notice.")
+	version := flag.Bool("version", false, "Show version")
 
 	reqHeaders := make(map[string]string)
 	flag.Func("req-header", "Additional request header as \"key: value\" string", func(s string) error {
@@ -270,22 +268,22 @@ func Do(cmd []string, cfg RunConfig, handle string, p Pinger) int {
 	}
 
 	var (
-		pbr *RingBuffer
-		pb  io.ReadWriter
+		ringbuf  *RingBuffer
+		pingbody io.ReadWriter
 	)
 
 	if cfg.PingBodyLimit > 0 {
-		pbr = NewRingBuffer(int(cfg.PingBodyLimit))
-		pb = io.ReadWriter(pbr)
+		ringbuf = NewRingBuffer(int(cfg.PingBodyLimit))
+		pingbody = io.ReadWriter(ringbuf)
 	} else {
-		pb = new(bytes.Buffer)
+		pingbody = new(bytes.Buffer)
 	}
 
 	var mw io.Writer
 	if cfg.NoOutputInPing {
 		mw = io.MultiWriter(os.Stdout)
 	} else {
-		mw = io.MultiWriter(os.Stdout, pb)
+		mw = io.MultiWriter(os.Stdout, pingbody)
 	}
 
 	// WARNING:
@@ -309,34 +307,34 @@ func Do(cmd []string, cfg RunConfig, handle string, p Pinger) int {
 	case exitCode > 0 && err != nil:
 		// Successfully executed the command.
 		// Command exited with nonzero code.
-		fmt.Fprintf(pb, "\n[%s] %v", Name, err)
+		fmt.Fprintf(pingbody, "\n[%s] %v", Name, err)
 		ping = cfg.OnNonzeroExit
 
 	case exitCode == -1 && err != nil:
 		// Could not execute the command.
 		// Write to host stderr and the ping body.
-		w := io.MultiWriter(os.Stderr, pb)
+		w := io.MultiWriter(os.Stderr, pingbody)
 		fmt.Fprintf(w, "[%s] %v\n", Name, err)
 		ping = cfg.OnExecFail
 		exitCode = 1
 	}
 
-	if pbr != nil && pbr.Wrapped() {
-		fmt.Fprintf(pb, "\n[%s] Output truncated to last %d bytes.", Name, cfg.PingBodyLimit)
+	if ringbuf != nil && ringbuf.Wrapped() {
+		fmt.Fprintf(pingbody, "\n[%s] Output truncated to last %d bytes.", Name, ringbuf.Cap())
 	}
 
 	switch ping {
 	case PingTypeSuccess:
-		_, err = p.PingSuccess(handle, pb)
+		_, err = p.PingSuccess(handle, pingbody)
 	case PingTypeFail:
-		_, err = p.PingFail(handle, pb)
+		_, err = p.PingFail(handle, pingbody)
 	case PingTypeLog:
-		_, err = p.PingLog(handle, pb)
+		_, err = p.PingLog(handle, pingbody)
 	default:
 		// A safe default: PingExitCode
 		// It's too late error out here.
 		// Command got executed. We need to deliver a ping.
-		_, err = p.PingExitCode(handle, exitCode, pb)
+		_, err = p.PingExitCode(handle, exitCode, pingbody)
 	}
 
 	if err != nil {
