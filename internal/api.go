@@ -202,6 +202,9 @@ Try:
 	case resp.StatusCode == http.StatusOK:
 		return
 	case retriableResponse(resp.StatusCode):
+		code := resp.StatusCode
+		text := http.StatusText(code)
+		err = fmt.Errorf("%d %s", code, text)
 		goto Try
 	default:
 		err = fmt.Errorf("%w: %s", ErrNonRetriable, resp.Status)
