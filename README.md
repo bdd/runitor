@@ -25,7 +25,7 @@ and `sha256sum` to verify downloads.
 
 ### Build Locally
 
-If you have Go 1.16 or newer installed, you can use the command:
+If you have Go 1.18 or newer installed, you can use the command:
 
 	go install bdd.fi/x/runitor/cmd/runitor@latest
 
@@ -101,36 +101,40 @@ command right away and reset the interval.
 
 ### Flags
 
-	-uuid=""
-		UUID of check. Takes precedence over CHECK_UUID environment variable.
-	-slug=""
-		Slug of check. Requires a ping key. Takes precedence over CHECK_SLUG environment variable
-	-ping-key=""
-		Ping Key. Takes precedence over HC_PING_KEY environment variable
-	-every="0s"
-		If non-zero, periodically run command at specified interval.
-	-quiet=false
-		Don't capture command's stdout.
-	-silent=false
-		Don't capture command's stdout or stderr.
-	-no-start-ping=false
-		Don't send start ping.
-	-no-output-in-ping=false
-		Don't send command's output in pings.
-	-ping-body-limit=10_000
-		If non-zero, truncate the ping body to its last N bytes,
-		including a truncation notice.
-		Default value for hc-ping.com instance is 100KB.
-		For everything else 10KB.
-	-api-url="https://hc-ping.com"
-		API URL. Takes precedence over HC_API_URL environment variable. Defaults to healthchecks.io hosted service.
-	-api-retries=2
-		Number of times an API request will be retried if it fails with
-		a transient error.
-	-api-timeout="5s"
-		Client timeout per request.
-	-req-header=""
-		Additional request header as "key: value" string
+	-api-retries uint
+	  Number of times an API request will be retried if it fails with a transient error (default 2)
+	-api-timeout duration
+	  Client timeout per request (default 5s)
+	-api-url string
+	  API URL. Takes precedence over HC_API_URL environment variable (default "https://hc-ping.com")
+	-every duration
+	  If non-zero, periodically run command at specified interval
+	-no-output-in-ping
+	  Don't send command's output in pings
+	-no-start-ping
+	  Don't send start ping
+	-on-exec-fail value
+	  Ping type to send when runitor cannot execute the command (exit-code|success|fail|log (default fail))
+	-on-nonzero-exit value
+	  Ping type to send when command exits with a nonzero code (exit-code|success|fail|log (default exit-code))
+	-on-success value
+	  Ping type to send when command exits successfully (exit-code|success|fail|log (default success))
+	-ping-body-limit uint
+	  If non-zero, truncate the ping body to its last N bytes, including a truncation notice. (default 10000)
+	-ping-key string
+	  Ping Key. Takes precedence over HC_PING_KEY environment variable
+	-quiet
+	  Don't capture command's stdout
+	-req-header value
+	  Additional request header as "key: value" string
+	-silent
+	  Don't capture command's stdout or stderr
+	-slug string
+	  Slug of check. Requires a ping key. Takes precedence over CHECK_SLUG environment variable
+	-uuid string
+	  UUID of check. Takes precedence over CHECK_UUID environment variable
+	-version
+	  Show version
 
 
 ## More on What healthchecks.io Provides
