@@ -32,4 +32,4 @@ if [[ ${tag} =~ -(alpha|beta|rc)\.[0-9] ]]; then
   prerelease="--prerelease"
 fi
 
-gh release create "${tag}" "${prerelease}" "${BUILD_DIR}"/*
+gh release create ${prerelease} "${tag}" "${BUILD_DIR}"/*
