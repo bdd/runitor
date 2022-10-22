@@ -103,7 +103,6 @@ func FromFlagOrEnv(flg, env string) string {
 func main() {
 	apiURL := flag.String("api-url", DefaultBaseURL, "API URL. Takes precedence over HC_API_URL environment variable")
 	apiRetries := flag.Uint("api-retries", DefaultRetries, "Number of times an API request will be retried if it fails with a transient error")
-	_apiTries := flag.Uint("api-tries", 0, "DEPRECATED (pending removal in v1.0.0): Use -api-retries")
 	apiTimeout := flag.Duration("api-timeout", DefaultTimeout, "Client timeout per request")
 	pingKey := flag.String("ping-key", "", "Ping Key. Takes precedence over HC_PING_KEY environment variable")
 	slug := flag.String("slug", "", "Slug of check. Requires a ping key. Takes precedence over CHECK_SLUG environment variable")
@@ -179,12 +178,6 @@ func main() {
 	}
 
 	retries := Max(0, *apiRetries) // has to be >= 0
-
-	if *_apiTries > 0 {
-		retries = *_apiTries - 1
-
-		log.Print("The '-api-tries' flag is deprecated and will be removed in v1.0.0. Switch to '-api-retries' flag.")
-	}
 
 	cmd := flag.Args()
 	client := &APIClient{
