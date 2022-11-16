@@ -1,3 +1,3 @@
 module bdd.fi/x/runitor
 
-go 1.18
+go 1.19

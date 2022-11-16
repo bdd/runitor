@@ -13,7 +13,10 @@ import (
 	. "bdd.fi/x/runitor/internal"
 )
 
-const TestHandle string = "pingKey/testHandle"
+const (
+	TestHandle = "pingKey/testHandle"
+	TestRunId  = "00000000-1111-4000-a000-223344556677"
+)
 
 // Tests if APIClient makes requests with the expected method, content-type,
 // and user-agent.
@@ -49,7 +52,7 @@ func TestPostRequest(t *testing.T) {
 		UserAgent: expUA,
 	}
 
-	_, err := c.PingSuccess(TestHandle, nil)
+	_, err := c.PingSuccess(TestHandle, TestRunId, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -105,7 +108,7 @@ func TestPostRetries(t *testing.T) {
 		Backoff: backoff,
 	}
 
-	_, err := c.PingSuccess(TestHandle, nil)
+	_, err := c.PingSuccess(TestHandle, TestRunId, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -135,7 +138,7 @@ func TestPostNonRetriable(t *testing.T) {
 		Client:  ts.Client(),
 	}
 
-	_, err := c.PingSuccess(TestHandle, nil)
+	_, err := c.PingSuccess(TestHandle, TestRunId, nil)
 	if err == nil {
 		t.Errorf("expected PingSuccess to return non-nil error after non-retriable API response")
 	}
@@ -150,11 +153,11 @@ func TestPostURIs(t *testing.T) {
 	c := &APIClient{}
 
 	testCases := map[string]ping{
-		"/start": func() (*InstanceConfig, error) { return c.PingStart(TestHandle) },
-		"":       func() (*InstanceConfig, error) { return c.PingSuccess(TestHandle, nil) },
-		"/fail":  func() (*InstanceConfig, error) { return c.PingFail(TestHandle, nil) },
-		"/log":   func() (*InstanceConfig, error) { return c.PingLog(TestHandle, nil) },
-		"/42":    func() (*InstanceConfig, error) { return c.PingExitCode(TestHandle, 42, nil) },
+		"/start": func() (*InstanceConfig, error) { return c.PingStart(TestHandle, TestRunId) },
+		"":       func() (*InstanceConfig, error) { return c.PingSuccess(TestHandle, TestRunId, nil) },
+		"/fail":  func() (*InstanceConfig, error) { return c.PingFail(TestHandle, TestRunId, nil) },
+		"/log":   func() (*InstanceConfig, error) { return c.PingLog(TestHandle, TestRunId, nil) },
+		"/42":    func() (*InstanceConfig, error) { return c.PingExitCode(TestHandle, TestRunId, 42, nil) },
 	}
 
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -215,7 +218,7 @@ func TestPostReqHeaders(t *testing.T) {
 		ReqHeaders: expReqHeaders,
 	}
 
-	_, err := c.PingSuccess(TestHandle, nil)
+	_, err := c.PingSuccess(TestHandle, TestRunId, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
