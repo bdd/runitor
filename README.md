@@ -111,6 +111,8 @@ command right away and reset the interval.
 	  If non-zero, periodically run command at specified interval
 	-no-output-in-ping
 	  Don't send command's output in pings
+	-no-run-id
+	  Don't generate and send a run id per run in pings
 	-no-start-ping
 	  Don't send start ping
 	-on-exec-fail value

@@ -28,6 +28,7 @@ type RunConfig struct {
 	Silent                  bool     // No cmd stdout or stderr
 	NoStartPing             bool     // Don't send Start ping
 	NoOutputInPing          bool     // Don't send command std{out, err} with Success and Failure pings
+	NoRunId                 bool     // Don't generate and send a run id per run in pings
 	PingBodyLimitIsExplicit bool     // Explicit limit via flags
 	PingBodyLimit           uint     // Truncate ping body to last N bytes
 	OnSuccess               PingType // Ping type to send when command exits successfully
@@ -115,6 +116,7 @@ func main() {
 	onExecFail := pingTypeFlag("on-exec-fail", PingTypeFail, "Ping type to send when runitor cannot execute the command")
 	noStartPing := flag.Bool("no-start-ping", false, "Don't send start ping")
 	noOutputInPing := flag.Bool("no-output-in-ping", false, "Don't send command's output in pings")
+	noRunId := flag.Bool("no-run-id", false, "Don't generate and send a run id per run in pings")
 	pingBodyLimit := flag.Uint("ping-body-limit", 10_000, "If non-zero, truncate the ping body to its last N bytes, including a truncation notice.")
 	version := flag.Bool("version", false, "Show version")
 
@@ -196,6 +198,7 @@ func main() {
 		Silent:                  *silent,
 		NoStartPing:             *noStartPing,
 		NoOutputInPing:          *noOutputInPing,
+		NoRunId:                 *noRunId,
 		PingBodyLimitIsExplicit: pingBodyLimitFromArgs,
 		PingBodyLimit:           *pingBodyLimit,
 		OnSuccess:               *onSuccess,
@@ -205,7 +208,7 @@ func main() {
 
 	// Save this invocation so we don't repeat ourselves.
 	task := func() int {
-		return Do(cmd, cfg, handle, client)
+		return Run(cmd, cfg, handle, client)
 	}
 
 	exitCode := task()
@@ -232,13 +235,22 @@ func main() {
 	}
 }
 
-// Do function runs the cmd line, tees its output to terminal & ping body as
+// Run function runs the cmd line, tees its output to terminal & ping body as
 // configured in cfg and pings the monitoring API to signal start, and then
 // success or failure of execution. Returns the exit code from the ran command
 // unless execution has failed, in such case 1 is returned.
-func Do(cmd []string, cfg RunConfig, handle string, p Pinger) int {
+func Run(cmd []string, cfg RunConfig, handle string, p Pinger) int {
+	var rid string
+	var err error
+	if !cfg.NoRunId {
+		rid, err = NewUUID4()
+		if err != nil {
+			panic("XXX")
+		}
+	}
+
 	if !cfg.NoStartPing {
-		icfg, err := p.PingStart(handle)
+		icfg, err := p.PingStart(handle, rid)
 		if err != nil {
 			log.Print("Ping(start): ", err)
 		} else if instanceLimit, ok := icfg.PingBodyLimit.Get(); ok {
@@ -291,7 +303,7 @@ func Do(cmd []string, cfg RunConfig, handle string, p Pinger) int {
 		cmdStderr = mw
 	}
 
-	exitCode, err := Run(cmd, cmdStdout, cmdStderr)
+	exitCode, err := Exec(cmd, cmdStdout, cmdStderr)
 	var ping PingType
 	switch {
 	case exitCode == 0 && err == nil:
@@ -318,16 +330,16 @@ func Do(cmd []string, cfg RunConfig, handle string, p Pinger) int {
 
 	switch ping {
 	case PingTypeSuccess:
-		_, err = p.PingSuccess(handle, pingbody)
+		_, err = p.PingSuccess(handle, rid, pingbody)
 	case PingTypeFail:
-		_, err = p.PingFail(handle, pingbody)
+		_, err = p.PingFail(handle, rid, pingbody)
 	case PingTypeLog:
-		_, err = p.PingLog(handle, pingbody)
+		_, err = p.PingLog(handle, rid, pingbody)
 	default:
 		// A safe default: PingExitCode
 		// It's too late error out here.
 		// Command got executed. We need to deliver a ping.
-		_, err = p.PingExitCode(handle, exitCode, pingbody)
+		_, err = p.PingExitCode(handle, rid, exitCode, pingbody)
 	}
 
 	if err != nil {
@@ -337,9 +349,9 @@ func Do(cmd []string, cfg RunConfig, handle string, p Pinger) int {
 	return exitCode
 }
 
-// Run function executes cmd[0] with parameters cmd[1:] and redirects its stdout & stderr to passed
+// Exec function executes cmd[0] with parameters cmd[1:] and redirects its stdout & stderr to passed
 // writers of corresponding parameter names.
-func Run(cmd []string, stdout, stderr io.Writer) (exitCode int, err error) {
+func Exec(cmd []string, stdout, stderr io.Writer) (exitCode int, err error) {
 	c := exec.Command(cmd[0], cmd[1:]...)
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, stdout, stderr
 
