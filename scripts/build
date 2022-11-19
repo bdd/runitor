@@ -32,7 +32,9 @@ if [[ ${GO} != "go" ]]; then
     # wanted go version is the default go.
     GO=go
   elif ! type -p "${GO}"; then
+    GOBIN=${GOBIN:-$(go env GOPATH | cut -d: -f1)/bin}
     go install "golang.org/dl/${GO}@latest"
+    GO="${GOBIN}/${GO}"
     "${GO}" download
   fi
 fi
