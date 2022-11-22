@@ -5,6 +5,7 @@ package internal_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -141,6 +142,47 @@ func TestPostNonRetriable(t *testing.T) {
 	_, err := c.PingSuccess(TestHandle, TestRunId, nil)
 	if err == nil {
 		t.Errorf("expected PingSuccess to return non-nil error after non-retriable API response")
+	}
+}
+
+// Tests if POST URI is constructed correctly
+func TestPostURIConstruction(t *testing.T) {
+	t.Parallel()
+
+	type ping func() (*InstanceConfig, error)
+
+	c := &APIClient{}
+
+	testCases := map[string]string{
+		"suffix=":     "/",
+		"suffix=/":    "/",
+		"suffix=//":   "/",
+		"suffix=/foo": "/foo",
+	}
+
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testCase := r.Header.Get("test-case")
+		expectedPathPrefix, ok := testCases[testCase]
+		if !ok {
+			t.Fatalf("Unexpected test case %s", testCase)
+		}
+
+		expectedPath, _ := url.JoinPath(expectedPathPrefix, TestHandle, "start")
+		if r.URL.Path != expectedPath {
+			t.Errorf("For test case %s expected to get path %s, got %s\n", testCase, expectedPath, r.URL.Path)
+		}
+	}))
+
+	defer ts.Close()
+
+	c.Client = ts.Client()
+	for testCase := range testCases {
+		reqPath := strings.TrimPrefix(testCase, "suffix=")
+		c.BaseURL = ts.URL + reqPath
+		c.ReqHeaders = map[string]string{"test-case": testCase}
+		if _, err := c.PingStart(TestHandle, TestRunId); err != nil {
+			t.Fatalf("Request for test case %s failed: %v", testCase, err)
+		}
 	}
 }
 

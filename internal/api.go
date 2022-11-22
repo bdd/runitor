@@ -251,12 +251,10 @@ func (c *APIClient) ping(handle, rid, typePath string, body io.Reader) (*Instanc
 		return nil, err
 	}
 
-	path, err := url.JoinPath(handle, typePath)
+	u.Path, err = url.JoinPath(u.Path, handle, typePath)
 	if err != nil {
 		return nil, err
 	}
-
-	u.Path += path
 
 	if len(rid) > 0 {
 		q := url.Values{}
