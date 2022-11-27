@@ -1,5 +1,5 @@
 // Copyright 2020 - 2022, Berk D. Demir and the runitor contributors
-// SPDX-License-Identifier: OBSD
+// SPDX-License-Identifier: 0BSD
 package internal
 
 type Optional[T any] struct {
