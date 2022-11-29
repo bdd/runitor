@@ -321,3 +321,47 @@ func TestContentLengthForRingBufferBody(t *testing.T) {
 		t.Fatalf("ping failed: %+v", err)
 	}
 }
+
+// Tests if a RingBuffer request body is resubmitted on a 307 redirect.
+func TestResubmitRingBufferBody(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("Hello, World!")
+
+	pingReceived := false
+
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("could not read request body")
+		}
+		if string(reqBody) != string(body) {
+			t.Errorf("request body does not match expected body")
+		}
+		if r.URL.Path == "/redirect-target" {
+			pingReceived = true
+		} else {
+			w.Header().Set("Location", "/redirect-target")
+			w.WriteHeader(307)
+		}
+	}))
+
+	defer ts.Close()
+
+	c := &APIClient{
+		BaseURL: ts.URL,
+		Client:  ts.Client(),
+	}
+
+	rb := NewRingBuffer(100)
+	rb.Write(body)
+
+	_, err := c.PingSuccess(TestHandle, TestRunId, rb)
+	if err != nil {
+		t.Fatalf("ping failed: %+v", err)
+	}
+
+	if !pingReceived {
+		t.Fatalf("ping request succeeded, but redirect target was never called")
+	}
+}
