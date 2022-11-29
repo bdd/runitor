@@ -3,6 +3,8 @@
 package internal_test
 
 import (
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -280,5 +282,42 @@ func TestNewDefaultTransportWithResumption(t *testing.T) {
 	tr := NewDefaultTransportWithResumption()
 	if tr.TLSClientConfig == nil {
 		t.Errorf("TLSClientConfig is not set")
+	}
+}
+
+// Tests if Content-Length gets set correctly when a RingBuffer is used as
+// request body.
+func TestContentLengthForRingBufferBody(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("Hello, World!")
+
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		v := r.Header.Get("Content-Length")
+		if v != fmt.Sprintf("%d", len(body)) {
+			t.Errorf("Content-Length header should be set to %d, but got %s", len(body), v)
+		}
+		reqBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("could not read request body")
+		}
+		if string(reqBody) != string(body) {
+			t.Errorf("request body does not match expected body")
+		}
+	}))
+
+	defer ts.Close()
+
+	c := &APIClient{
+		BaseURL: ts.URL,
+		Client:  ts.Client(),
+	}
+
+	rb := NewRingBuffer(100)
+	rb.Write(body)
+
+	_, err := c.PingSuccess(TestHandle, TestRunId, rb)
+	if err != nil {
+		t.Fatalf("ping failed: %+v", err)
 	}
 }
