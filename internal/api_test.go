@@ -3,6 +3,7 @@
 package internal_test
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -335,8 +336,8 @@ func TestResubmitRingBufferBody(t *testing.T) {
 		if err != nil {
 			t.Errorf("could not read request body")
 		}
-		if string(reqBody) != string(body) {
-			t.Errorf("request body does not match expected body")
+		if !bytes.Equal(reqBody, body) {
+			t.Errorf("request body does not match expected body: %s", reqBody)
 		}
 		if r.URL.Path == "/redirect-target" {
 			pingReceived = true
