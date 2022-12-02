@@ -9,7 +9,8 @@
   outputs = { self, nixpkgs, flake-utils }: flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = import nixpkgs { inherit system; };
-    in {
+    in
+    {
       devShells = {
         default = pkgs.mkShell {
           buildInputs = with pkgs; [
@@ -18,10 +19,10 @@
             self.packages.${system}.enumer
 
             # release
-            gh  # make a release an github and upload artifacts
+            gh # make a release an github and upload artifacts
             git # mkrel: git tag, git push
             curl # verify, dlrel, build
-            coreutils #  sha256sum: sign & verify
+            coreutils # sha256sum: sign & verify
             openssh # ssh-keygen: sign & verify
           ];
         };
@@ -64,7 +65,7 @@
           vendorSha256 = "BmFv0ytRnjaB7z7Gb+38Fw2ObagnaFMnMhlejhaGxsk=";
           meta = with lib; {
             description = "A Go tool to auto generate methods for your enums";
-            license =  licenses.bsd2;
+            license = licenses.bsd2;
             maintainers = with maintainers; [ bdd ];
           };
         };
