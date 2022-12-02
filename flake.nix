@@ -2,7 +2,7 @@
   description = "runitor";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-22.11-darwin";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
