@@ -33,3 +33,6 @@ if [[ ${tag} =~ -(alpha|beta|rc)\.[0-9] ]]; then
 fi
 
 gh release create ${prerelease} "${tag}" "${BUILD_DIR}"/*
+
+# Nudge Go module proxy
+curl https://proxy.golang.org/github.com/bdd/runitor/@latest
