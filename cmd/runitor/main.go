@@ -1,6 +1,6 @@
 // Copyright (c) Berk D. Demir and the runitor contributors.
 // SPDX-License-Identifier: 0BSD
-package main // import "bdd.fi/x/runitor/cmd/runitor"
+package main
 
 import (
 	"bytes"
