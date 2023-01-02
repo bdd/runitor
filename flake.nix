@@ -1,3 +1,5 @@
+# Copyright (c) Berk D. Demir and the runitor contributors.
+# SPDX-License-Identifier: 0BSD
 {
   description = "runitor";
 
