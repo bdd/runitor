@@ -12,6 +12,7 @@ set -euo pipefail
 
 PROJECT="bdd/runitor"
 API_RELEASES="https://api.github.com/repos/${PROJECT}/releases"
+DL_URL_BASE="https://github.com/${PROJECT}/releases/download"
 
 rel="${1-}"
 case "${rel}" in
@@ -19,7 +20,7 @@ case "${rel}" in
   latest) relpath="latest" ;;
   v*) relpath="tags/${rel}" ;;
   *)
-    echo "usage: $0 list|latest|vX.X.X" >&2
+    echo "usage: $0 list|latest|vX.X.X [os [arch]]" >&2
     exit 64 # EX_USAGE
 esac
 
@@ -28,11 +29,33 @@ if [[ ${rel} == "list" ]]; then
   exit 0
 fi
 
+# platform specification as "-$os-$arch" in the filename.
+if (($# > 1)); then
+  platspec="-${2-}-${3-}"
+else
+  platspec="runitor-" # something to match every platform binary
+fi
+
 # Create a brace expansion URL list for curl from release asset download URLs.
 # e.g. {url1,url2,url3,...}
 asset_dl_urls_for_curl=$(
   curl -Ssf "${API_RELEASES}/${relpath}" \
-    | jq -r '"{" + ([.assets[].browser_download_url] | join(",")) + "}"'
+    | jq --raw-output --arg dl_url_base "${DL_URL_BASE}" --arg platspec "${platspec}" \
+    '
+      .tag_name as $tag
+      |
+      [.assets[].name | select(contains($platspec))] as $bins
+      |
+      if $bins | length > 0 then
+        $bins
+      else
+        error("no matching asset for \($platspec)")
+      end
+      |
+      ($bins + ["SHA256", "SHA256.sig"] | join(",")) as $files
+      |
+      "\($dl_url_base)/\($tag)/{\($files)}"
+    '
 )
 
 if [[ -z ${DOWNLOAD_DIR-} ]]; then
