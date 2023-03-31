@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -eou pipefail
+set -x
+
+##
+# /!\ THIS SCRIPT IS INTENDED FOR MAINTAINER USE ONLY /!\
+##
+
+if [[ -z ${RUNTIMES-} ]]; then
+  RUNTIMES=(alpine ubuntu debian)
+else
+  read -ra RUNTIMES <<< "${RUNTIMES//,/ }"
+fi
+
+if [[ -z ${PLATFORMS-} ]]; then
+  PLATFORMS="linux/amd64,linux/arm64/v8,linux/arm/v7"
+fi
+
+push_queue=()
+
+for rt in "${RUNTIMES[@]}"; do
+  rel_manifest="runitor:${RELEASE}-${rt}"
+  rti_manifest="runitor:${rt}"
+
+  if podman manifest exists "${rel_manifest}"; then
+    echo "manifest ${rel_manifest} already exists." >/dev/stderr
+    exit 1
+  fi
+
+  podman build \
+    --pull=newer --omit-history \
+    --platform "${PLATFORMS}" \
+    --build-arg RELEASE="${RELEASE}" \
+    --build-arg RUNTIME_IMG="${rt}:latest" \
+    --manifest "${rel_manifest}" \
+    .
+
+  podman image tag "${rel_manifest}" "${rti_manifest}"
+  push_queue+=("${rel_manifest}" "${rti_manifest}")
+done
+
+podman image tag "runitor:ubuntu" "runitor:${RELEASE}"
+podman image tag "runitor:${RELEASE}" "runitor:latest"
+push_queue+=("runitor:${RELEASE}" "runitor:latest")
+
+if [[ -n ${PUSH-} ]]; then
+  echo "Pushing: ${push_queue[*]}"
+
+  for manifest in "${push_queue[@]}"; do
+    podman manifest push "${manifest}" "docker://docker.io/runitor/${manifest}"
+  done
+else
+  echo "Need to push: ${push_queue[*]}"
+fi

@@ -43,6 +43,14 @@ environment variables to the `go install` command.
 ...and the binary will be under `$GOPATH/bin/plan9_arm/runitor`.
 
 
+### Container Image
+
+If you prefer to run your workloads in containers,
+[runitor/runitor](https://hub.docker.com/r/runitor/runitor) on Docker Hub
+provides images based on Alpine, Debian, and Ubuntu for x86_64, arm64v8, and
+armv7 architectures.
+
+
 ## Why Do I Need This Instead of Calling curl from a Shell Script?
 
 In addition to clean separation of concerns from the thing that needs to run and
