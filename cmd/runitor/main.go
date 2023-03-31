@@ -189,7 +189,7 @@ func main() {
 			Transport: NewDefaultTransportWithResumption(),
 			Timeout:   *apiTimeout,
 		},
-		UserAgent:  fmt.Sprintf("%s/%s (+%s)", Name, releaseVersion(), Homepage),
+		UserAgent:  fmt.Sprintf("%s/%s (%s-%s; +%s)", Name, releaseVersion(), runtime.GOOS, runtime.GOARCH, Homepage),
 		ReqHeaders: reqHeaders,
 	}
 
