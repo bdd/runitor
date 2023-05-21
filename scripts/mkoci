@@ -28,7 +28,8 @@ for rt in "${RUNTIMES[@]}"; do
   fi
 
   podman build \
-    --pull=newer --omit-history \
+    --pull=newer \
+    --format docker \
     --platform "${PLATFORMS}" \
     --build-arg RELEASE="${RELEASE}" \
     --build-arg RUNTIME_IMG="${rt}:latest" \
@@ -42,6 +43,21 @@ done
 podman image tag "runitor:ubuntu" "runitor:${RELEASE}"
 podman image tag "runitor:${RELEASE}" "runitor:latest"
 push_queue+=("runitor:${RELEASE}" "runitor:latest")
+
+
+# Bring image annotations to manifests
+for manifest in "${push_queue[@]}"; do
+  for digest in $(podman manifest inspect "${manifest}" | jq -r '.manifests[].digest'); do
+    podman manifest annotate \
+      --annotation org.opencontainers.image.title="runitor" \
+      --annotation org.opencontainers.image.description="Runitor is a command runner with healthchecks.io integration." \
+      --annotation org.opencontainers.image.url="https://bdd.fi/x/runitor" \
+      --annotation org.opencontainers.image.source="https://github.com/bdd/runitor" \
+      --annotation org.opencontainers.image.authors="Berk D. Demir - https://bdd.fi" \
+      --annotation org.opencontainers.image.version="${RELEASE}" \
+      "${manifest}" "${digest}"
+  done
+done
 
 if [[ -n ${PUSH-} ]]; then
   echo "Pushing: ${push_queue[*]}"

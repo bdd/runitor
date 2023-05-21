@@ -18,8 +18,8 @@ LABEL \
   org.opencontainers.image.description="Runitor is a command runner with healthchecks.io integration." \
   org.opencontainers.image.url="https://bdd.fi/x/runitor" \
   org.opencontainers.image.source="https://github.com/bdd/runitor" \
-  org.opencontainers.image.authors="Berk D. Demir <https://bdd.fi>" \
-  org.opencontainers.image.version=${RELEASE}
+  org.opencontainers.image.authors="Berk D. Demir - https://bdd.fi" \
+  org.opencontainers.image.version="${RELEASE}"
 COPY --from=build --chmod=0755 /tmp/rel/runitor-${RELEASE}-${TARGETOS}-${TARGETARCH} /usr/local/bin/runitor
 
 # Unlike Apline, Debian and Ubuntu container images do not ship with trust
