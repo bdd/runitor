@@ -1,0 +1,27 @@
+name: Build with Nix
+
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  build_and_test_nix:
+    name: Test and build TODOs API
+    #  needs: check_nix
+    strategy:
+      matrix:
+        os: [ubuntu-latest.04, macos-13]
+    runs-on: ubuntu-latest
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v3
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+      - name: Go Test
+        run: |
+          nix develop --command \
+            go test -v -race ./...
