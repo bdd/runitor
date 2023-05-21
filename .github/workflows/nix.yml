@@ -23,7 +23,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            - /nix/store
+            /nix/store
           key: nix-${{ runner.os }}
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
