@@ -114,7 +114,7 @@ command right away and reset the interval.
 	-api-timeout duration
 	  Client timeout per request (default 5s)
 	-api-url string
-	  API URL. Takes precedence over HC_API_URL environment variable (default "https://hc-ping.com")
+	  API URL. Takes precedence over HC_API_URL environment variable. API URL needs to end in `/ping` e.g. `"https://my.hc/ping"` (default "https://hc-ping.com") 
 	-every duration
 	  If non-zero, periodically run command at specified interval
 	-no-output-in-ping
