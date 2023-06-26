@@ -198,6 +198,8 @@ Try:
 	switch {
 	case resp.StatusCode == http.StatusOK:
 		return
+	case resp.StatusCode == http.StatusCreated:
+		return
 	case retriableResponse(resp.StatusCode):
 		code := resp.StatusCode
 		text := http.StatusText(code)
