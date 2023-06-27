@@ -11,7 +11,6 @@ on:
 jobs:
   build_and_test_nix:
     name: Test
-    #  needs: check_nix
     strategy:
       matrix:
         os: [ubuntu-latest.04, macos-13]
