@@ -25,7 +25,7 @@ and `sha256sum` to verify downloads.
 
 ### Build Locally
 
-If you have Go 1.18 or newer installed, you can use the command:
+If you have Go 1.19 or newer installed, you can use the command:
 
 	go install bdd.fi/x/runitor/cmd/runitor@latest
 
