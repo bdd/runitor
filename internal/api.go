@@ -74,11 +74,16 @@ func retriableResponse(code int) bool {
 // Pinger is the interface to Healthchecks.io pinging API
 // https://healthchecks.io/docs/http_api/
 type Pinger interface {
-	PingStart(handle, rid string) (*InstanceConfig, error)
-	PingLog(handle, rid string, body io.Reader) (*InstanceConfig, error)
-	PingSuccess(handle, rid string, body io.Reader) (*InstanceConfig, error)
-	PingFail(handle, rid string, body io.Reader) (*InstanceConfig, error)
-	PingExitCode(handle, rid string, exitCode int, body io.Reader) (*InstanceConfig, error)
+	PingStart(handle string, params PingParams) (*InstanceConfig, error)
+	PingLog(handle string, params PingParams, body io.Reader) (*InstanceConfig, error)
+	PingSuccess(handle string, params PingParams, body io.Reader) (*InstanceConfig, error)
+	PingFail(handle string, params PingParams, body io.Reader) (*InstanceConfig, error)
+	PingExitCode(handle string, params PingParams, exitCode int, body io.Reader) (*InstanceConfig, error)
+}
+
+type PingParams struct {
+	RunId  string
+	Create bool
 }
 
 // APIClient holds API endpoint URL, client behavior configuration, and embeds http.Client.
@@ -212,35 +217,35 @@ Try:
 }
 
 // PingStart sends a start ping for the check handle.
-func (c *APIClient) PingStart(handle, rid string) (*InstanceConfig, error) {
-	return c.ping(handle, rid, "start", nil)
+func (c *APIClient) PingStart(handle string, params PingParams) (*InstanceConfig, error) {
+	return c.ping(handle, params, "start", nil)
 }
 
 // PingSuccess sends a success ping for the check handle and attaches body as
 // the logged context.
-func (c *APIClient) PingSuccess(handle, rid string, body io.Reader) (*InstanceConfig, error) {
-	return c.ping(handle, rid, "", body)
+func (c *APIClient) PingSuccess(handle string, params PingParams, body io.Reader) (*InstanceConfig, error) {
+	return c.ping(handle, params, "", body)
 }
 
 // PingFail sends a failure ping for the check handle and attaches body as the
 // logged context.
-func (c *APIClient) PingFail(handle, rid string, body io.Reader) (*InstanceConfig, error) {
-	return c.ping(handle, rid, "fail", body)
+func (c *APIClient) PingFail(handle string, params PingParams, body io.Reader) (*InstanceConfig, error) {
+	return c.ping(handle, params, "fail", body)
 }
 
 // PingLog sends a logging only ping for the check handle and attaches body as
 // the logged context.
-func (c *APIClient) PingLog(handle, rid string, body io.Reader) (*InstanceConfig, error) {
-	return c.ping(handle, rid, "log", body)
+func (c *APIClient) PingLog(handle string, params PingParams, body io.Reader) (*InstanceConfig, error) {
+	return c.ping(handle, params, "log", body)
 }
 
 // PingExitCode sends the exit code of the monitored command for the check handle
 // and attaches body as the logged context.
-func (c *APIClient) PingExitCode(handle, rid string, exitCode int, body io.Reader) (*InstanceConfig, error) {
-	return c.ping(handle, rid, fmt.Sprintf("%d", exitCode), body)
+func (c *APIClient) PingExitCode(handle string, params PingParams, exitCode int, body io.Reader) (*InstanceConfig, error) {
+	return c.ping(handle, params, fmt.Sprintf("%d", exitCode), body)
 }
 
-func (c *APIClient) ping(handle, rid, typePath string, body io.Reader) (*InstanceConfig, error) {
+func (c *APIClient) ping(handle string, params PingParams, typePath string, body io.Reader) (*InstanceConfig, error) {
 	u, err := url.Parse(c.BaseURL)
 	if err != nil {
 		return nil, err
@@ -251,9 +256,15 @@ func (c *APIClient) ping(handle, rid, typePath string, body io.Reader) (*Instanc
 		return nil, err
 	}
 
-	if len(rid) > 0 {
-		q := url.Values{}
-		q.Add("rid", rid)
+	q := url.Values{}
+	if len(params.RunId) > 0 {
+		q.Add("rid", params.RunId)
+	}
+	if params.Create == true {
+		q.Add("create", "1")
+	}
+
+	if len(q) > 0 {
 		u.RawQuery = q.Encode()
 	}
 

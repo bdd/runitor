@@ -18,8 +18,16 @@ import (
 )
 
 const (
-	TestHandle = "pingKey/testHandle"
-	TestRunId  = "00000000-1111-4000-a000-223344556677"
+	TestHandle           = "pingKey/testHandle"
+	TestRunId            = "00000000-1111-4000-a000-223344556677"
+	TestCreateParamValue = "1"
+)
+
+var (
+	TestPingParamsNone          = PingParams{}
+	TestPingParamsWithRID       = PingParams{RunId: TestRunId}
+	TestPingParamsWithCreate    = PingParams{Create: true}
+	TestPingParamsWithRIDCreate = PingParams{RunId: TestRunId, Create: true}
 )
 
 // Tests if APIClient makes requests with the expected method, content-type,
@@ -56,7 +64,7 @@ func TestPostRequest(t *testing.T) {
 		UserAgent: expUA,
 	}
 
-	_, err := c.PingSuccess(TestHandle, TestRunId, nil)
+	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -73,11 +81,11 @@ func TestPost201Response(t *testing.T) {
 	defer ts.Close()
 
 	c := &APIClient{
-		BaseURL:   ts.URL,
-		Client:    ts.Client(),
+		BaseURL: ts.URL,
+		Client:  ts.Client(),
 	}
 
-	_, err := c.PingSuccess(TestHandle, TestRunId, nil)
+	_, err := c.PingSuccess(TestHandle, TestPingParamsWithRIDCreate, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -133,7 +141,7 @@ func TestPostRetries(t *testing.T) {
 		Backoff: backoff,
 	}
 
-	_, err := c.PingSuccess(TestHandle, TestRunId, nil)
+	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -163,7 +171,7 @@ func TestPostNonRetriable(t *testing.T) {
 		Client:  ts.Client(),
 	}
 
-	_, err := c.PingSuccess(TestHandle, TestRunId, nil)
+	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, nil)
 	if err == nil {
 		t.Errorf("expected PingSuccess to return non-nil error after non-retriable API response")
 	}
@@ -204,7 +212,7 @@ func TestPostURIConstruction(t *testing.T) {
 		reqPath := strings.TrimPrefix(testCase, "suffix=")
 		c.BaseURL = ts.URL + reqPath
 		c.ReqHeaders = map[string]string{"test-case": testCase}
-		if _, err := c.PingStart(TestHandle, TestRunId); err != nil {
+		if _, err := c.PingStart(TestHandle, TestPingParamsNone); err != nil {
 			t.Fatalf("Request for test case %s failed: %v", testCase, err)
 		}
 	}
@@ -219,11 +227,11 @@ func TestPostURIs(t *testing.T) {
 	c := &APIClient{}
 
 	testCases := map[string]ping{
-		"/start": func() (*InstanceConfig, error) { return c.PingStart(TestHandle, TestRunId) },
-		"":       func() (*InstanceConfig, error) { return c.PingSuccess(TestHandle, TestRunId, nil) },
-		"/fail":  func() (*InstanceConfig, error) { return c.PingFail(TestHandle, TestRunId, nil) },
-		"/log":   func() (*InstanceConfig, error) { return c.PingLog(TestHandle, TestRunId, nil) },
-		"/42":    func() (*InstanceConfig, error) { return c.PingExitCode(TestHandle, TestRunId, 42, nil) },
+		"/start": func() (*InstanceConfig, error) { return c.PingStart(TestHandle, TestPingParamsNone) },
+		"":       func() (*InstanceConfig, error) { return c.PingSuccess(TestHandle, TestPingParamsNone, nil) },
+		"/fail":  func() (*InstanceConfig, error) { return c.PingFail(TestHandle, TestPingParamsNone, nil) },
+		"/log":   func() (*InstanceConfig, error) { return c.PingLog(TestHandle, TestPingParamsNone, nil) },
+		"/42":    func() (*InstanceConfig, error) { return c.PingExitCode(TestHandle, TestPingParamsNone, 42, nil) },
 	}
 
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -251,6 +259,48 @@ func TestPostURIs(t *testing.T) {
 	for _, fn := range testCases {
 		if _, err := fn(); err != nil {
 			t.Errorf("Ping failed: %+v", err)
+		}
+	}
+}
+
+// Tests if Ping{Start,Log,Status} functions add the correct query parameters based on PingParams.
+func TestPostQueryParams(t *testing.T) {
+	t.Parallel()
+
+	c := &APIClient{}
+
+	type TestCase struct {
+		Params      PingParams
+		QueryString string
+	}
+
+	testCases := map[string]TestCase{
+		"no-params":      {},
+		"rid-only":       {TestPingParamsWithRID, "rid=" + TestRunId},
+		"create-only":    {TestPingParamsWithCreate, "create=1"},
+		"rid-and-create": {TestPingParamsWithRIDCreate, "create=1&rid=" + TestRunId},
+	}
+
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := r.Header.Get("test-case")
+		tc, ok := testCases[name]
+		if !ok {
+			t.Fatalf("Unexpected test case %s", name)
+		}
+
+		if r.URL.RawQuery != tc.QueryString {
+			t.Errorf("For test case %s expected to get query string %s, got %s\n", name, tc.QueryString, r.URL.RawQuery)
+		}
+	}))
+
+	defer ts.Close()
+
+	c.BaseURL = ts.URL
+	c.Client = ts.Client()
+	for name, tc := range testCases {
+		c.ReqHeaders = map[string]string{"test-case": name}
+		if _, err := c.PingStart(TestHandle, tc.Params); err != nil {
+			t.Fatalf("Request for test case %s failed: %v", name, err)
 		}
 	}
 }
@@ -284,7 +334,7 @@ func TestPostReqHeaders(t *testing.T) {
 		ReqHeaders: expReqHeaders,
 	}
 
-	_, err := c.PingSuccess(TestHandle, TestRunId, nil)
+	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, nil)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -338,7 +388,7 @@ func TestContentLengthForRingBufferBody(t *testing.T) {
 	rb := NewRingBuffer(100)
 	rb.Write(body)
 
-	_, err := c.PingSuccess(TestHandle, TestRunId, rb)
+	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, rb)
 	if err != nil {
 		t.Fatalf("ping failed: %+v", err)
 	}
@@ -378,7 +428,7 @@ func TestResubmitRingBufferBody(t *testing.T) {
 	rb := NewRingBuffer(100)
 	rb.Write(body)
 
-	_, err := c.PingSuccess(TestHandle, TestRunId, rb)
+	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, rb)
 	if err != nil {
 		t.Fatalf("ping failed: %+v", err)
 	}

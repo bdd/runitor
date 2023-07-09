@@ -29,6 +29,7 @@ type RunConfig struct {
 	NoStartPing             bool     // Don't send Start ping
 	NoOutputInPing          bool     // Don't send command std{out, err} with Success and Failure pings
 	NoRunId                 bool     // Don't generate and send a run id per run in pings
+	Create                  bool     // Create a new check if slug is not found in the project
 	PingBodyLimitIsExplicit bool     // Explicit limit via flags
 	PingBodyLimit           uint     // Truncate ping body to last N bytes
 	OnSuccess               PingType // Ping type to send when command exits successfully
@@ -107,6 +108,7 @@ func main() {
 	apiTimeout := flag.Duration("api-timeout", DefaultTimeout, "Client timeout per request")
 	pingKey := flag.String("ping-key", "", "Ping Key. Takes precedence over HC_PING_KEY environment variable")
 	slug := flag.String("slug", "", "Slug of check. Requires a ping key. Takes precedence over CHECK_SLUG environment variable")
+	create := flag.Bool("create", false, "Create a new check if slug is not found in the project")
 	uuid := flag.String("uuid", "", "UUID of check. Takes precedence over CHECK_UUID environment variable")
 	every := flag.Duration("every", 0, "If non-zero, periodically run command at specified interval")
 	quiet := flag.Bool("quiet", false, "Don't capture command's stdout")
@@ -199,6 +201,7 @@ func main() {
 		NoStartPing:             *noStartPing,
 		NoOutputInPing:          *noOutputInPing,
 		NoRunId:                 *noRunId,
+		Create:                  *create,
 		PingBodyLimitIsExplicit: pingBodyLimitFromArgs,
 		PingBodyLimit:           *pingBodyLimit,
 		OnSuccess:               *onSuccess,
@@ -240,17 +243,24 @@ func main() {
 // success or failure of execution. Returns the exit code from the ran command
 // unless execution has failed, in such case 1 is returned.
 func Run(cmd []string, cfg RunConfig, handle string, p Pinger) int {
-	var rid string
-	var err error
+	var (
+		params PingParams
+		err    error
+	)
+
 	if !cfg.NoRunId {
-		rid, err = NewUUID4()
+		params.RunId, err = NewUUID4()
 		if err != nil {
 			panic("XXX")
 		}
 	}
 
+	if cfg.Create {
+		params.Create = true
+	}
+
 	if !cfg.NoStartPing {
-		icfg, err := p.PingStart(handle, rid)
+		icfg, err := p.PingStart(handle, params)
 		if err != nil {
 			log.Print("Ping(start): ", err)
 		} else if instanceLimit, ok := icfg.PingBodyLimit.Get(); ok {
@@ -330,16 +340,16 @@ func Run(cmd []string, cfg RunConfig, handle string, p Pinger) int {
 
 	switch ping {
 	case PingTypeSuccess:
-		_, err = p.PingSuccess(handle, rid, pingbody)
+		_, err = p.PingSuccess(handle, params, pingbody)
 	case PingTypeFail:
-		_, err = p.PingFail(handle, rid, pingbody)
+		_, err = p.PingFail(handle, params, pingbody)
 	case PingTypeLog:
-		_, err = p.PingLog(handle, rid, pingbody)
+		_, err = p.PingLog(handle, params, pingbody)
 	default:
 		// A safe default: PingExitCode
 		// It's too late error out here.
 		// Command got executed. We need to deliver a ping.
-		_, err = p.PingExitCode(handle, rid, exitCode, pingbody)
+		_, err = p.PingExitCode(handle, params, exitCode, pingbody)
 	}
 
 	if err != nil {

@@ -115,6 +115,8 @@ command right away and reset the interval.
 	  Client timeout per request (default 5s)
 	-api-url string
 	  API URL. Takes precedence over HC_API_URL environment variable (default "https://hc-ping.com")
+	-create
+	  Create a new check if slug is not found in the project
 	-every duration
 	  If non-zero, periodically run command at specified interval
 	-no-output-in-ping
