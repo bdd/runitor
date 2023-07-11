@@ -114,9 +114,7 @@ command right away and reset the interval.
 	-api-timeout duration
 	  Client timeout per request (default 5s)
   	 -api-url string
-	  API URL. Takes precedence over HC_API_URL environment variable (default "https://hc-ping.com"). Must not contain a trailing slash. 
-   	  When using with a self-hosted Healthchecks instance, where ping endpoints are hosted under the "/ping" path (this will show in the ping URLs in the web UI), the API URL must include this path. 
-          Example for a Healthchecks instance running on https://example.org: -api-url=https://example.org/ping
+	  API URL. Takes precedence over HC_API_URL environment variable (default "https://hc-ping.com"). Must not contain a trailing slash. When using with a self-hosted Healthchecks instance, where ping endpoints are hosted under the "/ping" path (this will show in the ping URLs in the web UI), the API URL must include this path. Example for a Healthchecks instance running on https://example.org: -api-url=https://example.org/ping
 	-every duration
 	  If non-zero, periodically run command at specified interval
 	-no-output-in-ping
