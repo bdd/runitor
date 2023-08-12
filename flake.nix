@@ -4,7 +4,7 @@
   description = "runitor";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-22.11-darwin";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-23.05-darwin";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -56,7 +56,7 @@
           };
         };
 
-        enumer = buildGoModule rec {
+        enumer = buildGo119Module rec {
           pname = "enumer";
           version = "1.5.7";
           src = fetchFromGitHub {
