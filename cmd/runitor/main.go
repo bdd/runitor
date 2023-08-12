@@ -66,17 +66,26 @@ type handleParams struct {
 	uuid, slug, pingKey string
 }
 
+type handleType int
+
+const (
+	UUIDHandle handleType = iota
+	KeyAndSlugHandle
+)
+
 // Handle composes the final check handle string to be used in the API URL
 // based on precedence or returns an error if a coexisting parameter isn't
 // passed.
-func (c *handleParams) Handle() (handle string, err error) {
+func (c *handleParams) Handle() (handle string, htype handleType, err error) {
 	gotUUID, gotSlug, gotPingKey := len(c.uuid) > 0, len(c.slug) > 0, len(c.pingKey) > 0
 
 	switch {
 	case gotUUID:
 		handle = c.uuid
+		htype = UUIDHandle
 	case gotSlug && gotPingKey:
 		handle = c.pingKey + "/" + c.slug
+		htype = KeyAndSlugHandle
 	case gotSlug:
 		err = errors.New("must also pass ping key either with '-ping-key PK' or HC_PING_KEY environment variable")
 	case gotPingKey:
@@ -108,7 +117,7 @@ func main() {
 	apiTimeout := flag.Duration("api-timeout", DefaultTimeout, "Client timeout per request")
 	pingKey := flag.String("ping-key", "", "Ping Key. Takes precedence over HC_PING_KEY environment variable")
 	slug := flag.String("slug", "", "Slug of check. Requires a ping key. Takes precedence over CHECK_SLUG environment variable")
-	create := flag.Bool("create", false, "Create a new check if slug is not found in the project")
+	create := flag.Bool("create", false, "Create a new check if passed slug is not found in the project")
 	uuid := flag.String("uuid", "", "UUID of check. Takes precedence over CHECK_UUID environment variable")
 	every := flag.Duration("every", 0, "If non-zero, periodically run command at specified interval")
 	quiet := flag.Bool("quiet", false, "Don't capture command's stdout")
@@ -146,9 +155,14 @@ func main() {
 		slug:    FromFlagOrEnv(*slug, "CHECK_SLUG"),
 		pingKey: FromFlagOrEnv(*pingKey, "HC_PING_KEY"),
 	}
-	handle, err := ch.Handle()
+
+	handle, htype, err := ch.Handle()
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if *create && htype != KeyAndSlugHandle {
+		log.Fatal("-create flag can be used only when passing a handle with ping key and slug")
 	}
 
 	// api-url flag vs HC_API_URL env var vs default value.
