@@ -4,7 +4,7 @@
   description = "runitor";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-23.05-darwin";
+    nixpkgs.url = "github:bdd/nixpkgs/go_1_21";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -17,11 +17,11 @@
         default = pkgs.mkShell {
           buildInputs = with pkgs; [
             # build
-            go
+            go_1_21
             self.packages.${system}.enumer
 
             # release
-            gh # make a release an github and upload artifacts
+            gh # create a release on github and upload artifacts
             git # mkrel: git tag, git push
             curl # verify, dlrel, build
             coreutils # sha256sum: sign & verify
@@ -31,7 +31,7 @@
       };
 
       packages = with pkgs; {
-        default = buildGoModule rec {
+        default = buildGo121Module rec {
           pname = "runitor";
           revDate = builtins.substring 0 8 (self.lastModifiedDate or "19700101");
           version = "${revDate}-${self.shortRev or "dirty"}";
@@ -72,7 +72,6 @@
             maintainers = with maintainers; [ bdd ];
           };
         };
-
       };
     }
   );

@@ -181,7 +181,7 @@ func main() {
 		log.Fatal("missing command")
 	}
 
-	retries := Max(0, *apiRetries) // has to be >= 0
+	retries := max(0, *apiRetries) // has to be >= 0
 
 	cmd := flag.Args()
 	client := &APIClient{
@@ -268,7 +268,7 @@ func Run(cmd []string, cfg RunConfig, handle string, p Pinger) int {
 				// Command line flag `-ping-body-limit` was used and
 				// the service instance returned a `Ping-Body-Limit` header.
 				// Pick the smaller value.
-				cfg.PingBodyLimit = Min(cfg.PingBodyLimit, instanceLimit)
+				cfg.PingBodyLimit = min(cfg.PingBodyLimit, instanceLimit)
 			} else {
 				// Let the instance override the runitor default up to 10MB.
 				//
@@ -277,7 +277,7 @@ func Run(cmd []string, cfg RunConfig, handle string, p Pinger) int {
 				// ring buffer implementation tries to eagerly
 				// allocate a zero filled array at this
 				// capacity.
-				cfg.PingBodyLimit = Min(instanceLimit, 10_000_000)
+				cfg.PingBodyLimit = min(instanceLimit, 10_000_000)
 			}
 		}
 	}
