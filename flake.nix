@@ -56,16 +56,16 @@
           };
         };
 
-        enumer = buildGo119Module rec {
+        enumer = buildGo121Module rec {
           pname = "enumer";
-          version = "1.5.7";
+          version = "1.5.8";
           src = fetchFromGitHub {
             owner = "dmarkham";
             repo = "enumer";
             rev = "v${version}";
-            sha256 = "2fVWrrWOiCtg7I3Lul2PgQ2u/qDEDioPSB61Tp0rfEo=";
+            sha256 = "sha256-+YTsXYWVmJ32V/Eptip3WAiqIYv+6nqbdph0K2XzLdc=";
           };
-          vendorSha256 = "BmFv0ytRnjaB7z7Gb+38Fw2ObagnaFMnMhlejhaGxsk=";
+          vendorSha256 = "sha256-+dCitvPz2JUbybXVJxUOo1N6+SUPCSjlacL8bTSlb7w=";
           meta = with lib; {
             description = "A Go tool to auto generate methods for your enums";
             license = licenses.bsd2;

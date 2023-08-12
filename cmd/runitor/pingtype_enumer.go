@@ -4,11 +4,14 @@ package main
 
 import (
 	"fmt"
+	"strings"
 )
 
 const _PingTypeName = "exit-codesuccessfaillog"
 
 var _PingTypeIndex = [...]uint8{0, 9, 16, 20, 23}
+
+const _PingTypeLowerName = "exit-codesuccessfaillog"
 
 func (i PingType) String() string {
 	if i < 0 || i >= PingType(len(_PingTypeIndex)-1) {
@@ -17,13 +20,34 @@ func (i PingType) String() string {
 	return _PingTypeName[_PingTypeIndex[i]:_PingTypeIndex[i+1]]
 }
 
-var _PingTypeValues = []PingType{0, 1, 2, 3}
+// An "invalid array index" compiler error signifies that the constant values have changed.
+// Re-run the stringer command to generate them again.
+func _PingTypeNoOp() {
+	var x [1]struct{}
+	_ = x[PingTypeExitCode-(0)]
+	_ = x[PingTypeSuccess-(1)]
+	_ = x[PingTypeFail-(2)]
+	_ = x[PingTypeLog-(3)]
+}
+
+var _PingTypeValues = []PingType{PingTypeExitCode, PingTypeSuccess, PingTypeFail, PingTypeLog}
 
 var _PingTypeNameToValueMap = map[string]PingType{
-	_PingTypeName[0:9]:   0,
-	_PingTypeName[9:16]:  1,
-	_PingTypeName[16:20]: 2,
-	_PingTypeName[20:23]: 3,
+	_PingTypeName[0:9]:        PingTypeExitCode,
+	_PingTypeLowerName[0:9]:   PingTypeExitCode,
+	_PingTypeName[9:16]:       PingTypeSuccess,
+	_PingTypeLowerName[9:16]:  PingTypeSuccess,
+	_PingTypeName[16:20]:      PingTypeFail,
+	_PingTypeLowerName[16:20]: PingTypeFail,
+	_PingTypeName[20:23]:      PingTypeLog,
+	_PingTypeLowerName[20:23]: PingTypeLog,
+}
+
+var _PingTypeNames = []string{
+	_PingTypeName[0:9],
+	_PingTypeName[9:16],
+	_PingTypeName[16:20],
+	_PingTypeName[20:23],
 }
 
 // PingTypeString retrieves an enum value from the enum constants string name.
@@ -32,12 +56,23 @@ func PingTypeString(s string) (PingType, error) {
 	if val, ok := _PingTypeNameToValueMap[s]; ok {
 		return val, nil
 	}
+
+	if val, ok := _PingTypeNameToValueMap[strings.ToLower(s)]; ok {
+		return val, nil
+	}
 	return 0, fmt.Errorf("%s does not belong to PingType values", s)
 }
 
 // PingTypeValues returns all values of the enum
 func PingTypeValues() []PingType {
 	return _PingTypeValues
+}
+
+// PingTypeStrings returns a slice of all String values of the enum
+func PingTypeStrings() []string {
+	strs := make([]string, len(_PingTypeNames))
+	copy(strs, _PingTypeNames)
+	return strs
 }
 
 // IsAPingType returns "true" if the value is listed in the enum definition. "false" otherwise
