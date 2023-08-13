@@ -62,8 +62,24 @@ func releaseVersion() string {
 	return Version
 }
 
+type handleParam struct {
+	source, value string
+}
+
+func (h handleParam) FromFlag() bool {
+	return len(h.value) > 0 && h.source == "flag"
+}
+
+func (h handleParam) FromEnv() bool {
+	return len(h.value) > 0 && h.source == "env"
+}
+
+func (h handleParam) Specified() bool {
+	return h.FromFlag() || h.FromEnv()
+}
+
 type handleParams struct {
-	uuid, slug, pingKey string
+	uuid, slug, pingKey handleParam
 }
 
 type handleType int
@@ -77,22 +93,42 @@ const (
 // based on precedence or returns an error if a coexisting parameter isn't
 // passed.
 func (c *handleParams) Handle() (handle string, htype handleType, err error) {
-	gotUUID, gotSlug, gotPingKey := len(c.uuid) > 0, len(c.slug) > 0, len(c.pingKey) > 0
-
 	switch {
-	case gotUUID:
-		handle = c.uuid
+	case c.uuid.FromFlag():
+		if c.pingKey.FromFlag() || c.slug.FromFlag() {
+			err = errors.New("cannot pass -ping-key or -slug arg when already passing -uuid")
+		} else {
+			handle = c.uuid.value
+			htype = UUIDHandle
+		}
+		return
+
+	case c.pingKey.FromFlag() || c.slug.FromFlag():
+		goto HANDLE_FROM_KEY_AND_SLUG
+
+	case c.uuid.FromEnv():
+		handle = c.uuid.value
 		htype = UUIDHandle
-	case gotSlug && gotPingKey:
-		handle = c.pingKey + "/" + c.slug
-		htype = KeyAndSlugHandle
-	case gotSlug:
-		err = errors.New("must also pass ping key either with '-ping-key PK' or HC_PING_KEY environment variable")
-	case gotPingKey:
-		err = errors.New("must also pass check slug with '-slug SL' or CHECK_SLUG environment variable")
-	default:
+		return
+
+	case !(c.pingKey.Specified() && c.slug.Specified()):
 		err = errors.New("must pass either a check UUID or check slug along with project ping key")
+		return
 	}
+
+HANDLE_FROM_KEY_AND_SLUG:
+	if !c.pingKey.Specified() {
+		err = errors.New("must also pass ping key either with '-ping-key' or HC_PING_KEY environment variable")
+		return "", 0, err
+	}
+
+	if !c.slug.Specified() {
+		err = errors.New("must also pass check slug with '-slug' or CHECK_SLUG environment variable")
+		return "", 0, err
+	}
+
+	handle = c.pingKey.value + "/" + c.slug.value
+	htype = KeyAndSlugHandle
 
 	return
 }
@@ -100,15 +136,21 @@ func (c *handleParams) Handle() (handle string, htype handleType, err error) {
 // FromFlagOrEnv is a helper to return flg if it isn't an empty string or look
 // up the environment variable env and return its value if it's set.
 // If neither are set returned value is an empty string.
-func FromFlagOrEnv(flg, env string) string {
+func FromFlagOrEnv(flg, env string) handleParam {
 	if len(flg) == 0 {
 		v, ok := os.LookupEnv(env)
 		if ok && len(v) > 0 {
-			return v
+			return handleParam{
+				value: v,
+				source: "env",
+			}
 		}
 	}
 
-	return flg
+	return handleParam{
+		value: flg,
+		source: "flag",
+	};
 }
 
 func main() {
