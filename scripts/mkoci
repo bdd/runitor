@@ -4,6 +4,16 @@ set -x
 
 ##
 # /!\ THIS SCRIPT IS INTENDED FOR MAINTAINER USE ONLY /!\
+#
+# == Prep on an amd64 machine for binfmt backed multi-arch image building
+# % sudo podman run --privileged --rm tonistiigi/binfmt --install arm,arm64
+#
+# == Business
+# % RELEASE=vX.Y.Z scripts/mkoci build
+# % RELEASE=vX.Y.Z scripts/mkoci push
+#
+# == Cleanup
+# % sudo podman run --privileged --rm tonistiigi/binfmt --uninstall arm,arm64
 ##
 
 if [[ -z ${RUNTIMES-} ]]; then
