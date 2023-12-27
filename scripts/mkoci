@@ -12,43 +12,94 @@ else
   read -ra RUNTIMES <<< "${RUNTIMES//,/ }"
 fi
 
+if [[ -z ${DEFAULT_RUNTIME-} ]]; then
+  # 'runitor:latest' and 'runitor:vX.Y.Z' will be tagged to 'runitor:<runtime>'
+  DEFAULT_RUNTIME="ubuntu"
+
+  if ! [[ $(IFS=%; echo "%${RUNTIMES[*]}%") =~ %${DEFAULT_RUNTIME}% ]]; then
+    echo "DEFAULT_RUNTIME=${DEFAULT_RUNTIME} is not in RUNTIMES=$(IFS=,; echo "${RUNTIMES[*]}")" >&2
+    exit 1
+  fi
+fi
+
 if [[ -z ${PLATFORMS-} ]]; then
   PLATFORMS="linux/amd64,linux/arm64/v8,linux/arm/v7"
 fi
 
-push_queue=()
+build() {
+  local rt rel_ts
 
-for rt in "${RUNTIMES[@]}"; do
-  rel_manifest="runitor:${RELEASE}-${rt}"
-  rti_manifest="runitor:${rt}"
+  # Use release tag's author date as the image and filesystem timestamp for
+  # reproducible builds.
+  rel_ts=$(git log -1 --format=%at "${RELEASE}")
 
-  if podman manifest exists "${rel_manifest}"; then
-    echo "manifest ${rel_manifest} already exists." >/dev/stderr
-    exit 1
+  for rt in "${RUNTIMES[@]}"; do
+    rel_manifest="runitor:${RELEASE}-${rt}"
+    rti_manifest="runitor:${rt}"
+
+    if podman manifest exists "${rel_manifest}"; then
+      echo "manifest ${rel_manifest} already exists. deleting..." >/dev/stderr
+      podman manifest rm "${rel_manifest}"
+    fi
+
+    podman build \
+      --pull=newer \
+      --omit-history \
+      --timestamp="${rel_ts}" \
+      --platform "${PLATFORMS}" \
+      --build-arg RELEASE="${RELEASE}" \
+      --build-arg RUNTIME_IMG="docker.io/library/${rt}:latest" \
+      --manifest "${rel_manifest}" \
+      .
+
+    podman image tag "${rel_manifest}" "${rti_manifest}"
+  done
+
+  podman image tag "runitor:${DEFAULT_RUNTIME}" "runitor:${RELEASE}"
+  podman image tag "runitor:${RELEASE}" "runitor:latest"
+}
+
+push() {
+  local manifests=()
+
+  if (( $# > 1 )); then
+    manifests+=("$@")
+  else
+    for rt in "${RUNTIMES[@]}"; do
+      manifests+=("runitor:${RELEASE}-${rt}" "runitor:${rt}")
+    done
   fi
 
-  podman build \
-    --pull=newer --omit-history \
-    --platform "${PLATFORMS}" \
-    --build-arg RELEASE="${RELEASE}" \
-    --build-arg RUNTIME_IMG="${rt}:latest" \
-    --manifest "${rel_manifest}" \
-    .
+  manifests+=("runitor:${RELEASE}" "runitor:latest")
 
-  podman image tag "${rel_manifest}" "${rti_manifest}"
-  push_queue+=("${rel_manifest}" "${rti_manifest}")
-done
-
-podman image tag "runitor:ubuntu" "runitor:${RELEASE}"
-podman image tag "runitor:${RELEASE}" "runitor:latest"
-push_queue+=("runitor:${RELEASE}" "runitor:latest")
-
-if [[ -n ${PUSH-} ]]; then
-  echo "Pushing: ${push_queue[*]}"
-
-  for manifest in "${push_queue[@]}"; do
+  for manifest in "${manifests[@]}"; do
+    echo "Pushing: ${manifest}"
     podman manifest push "${manifest}" "docker://docker.io/runitor/${manifest}"
   done
-else
-  echo "Need to push: ${push_queue[*]}"
-fi
+}
+
+clean() {
+  local manifests=()
+
+  for rt in "${RUNTIMES[@]}"; do
+    manifests+=("runitor:${RELEASE}-${rt}" "runitor:${rt}")
+  done
+
+  manifests+=("runitor:${RELEASE}" "runitor:latest")
+
+  # Unlike `podman image rm`, manifest doesn't have an `--ignore` flag.
+  for manifest in "${manifests[@]}"; do
+    if podman manifest exists "${manifest}"; then
+      podman manifest rm "${manifest}"
+    fi
+  done
+}
+
+case "$1" in
+  clean) clean ;;
+  build) build ;;
+  push) push "$@" ;;
+  *)
+    echo "usage: $0 build | push | clean" >&2
+    exit 64 # EX_USAGE
+esac
