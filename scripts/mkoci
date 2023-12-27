@@ -85,7 +85,7 @@ push() {
   for registry_namespace in "docker.io/runitor" "ghcr.io/bdd"; do
     for manifest in "${manifests[@]}"; do
       echo "Pushing: ${manifest} to ${registry_namespace}"
-      echo podman manifest push "${manifest}" "docker://${registry_namespace}/${manifest}"
+      podman manifest push "${manifest}" "docker://${registry_namespace}/${manifest}"
     done
   done
 }
