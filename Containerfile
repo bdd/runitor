@@ -22,7 +22,7 @@ LABEL \
   org.opencontainers.image.version=${RELEASE}
 COPY --from=build --chmod=0755 /tmp/rel/runitor-${RELEASE}-${TARGETOS}-${TARGETARCH} /usr/local/bin/runitor
 
-# Unlike Apline, Debian and Ubuntu container images do not ship with trust
+# Unlike Alpine, Debian and Ubuntu container images do not ship with trust
 # anchors needed to verify TLS certificates.
 #
 # A GH Issue from Nov 2017 (still open as of Mar 2023):
@@ -32,8 +32,8 @@ COPY --from=build --chmod=0755 /tmp/rel/runitor-${RELEASE}-${TARGETOS}-${TARGETA
 # registrations for target architectures.
 RUN if [ -f /etc/debian_version ]; then \
   export DEBIAN_FRONTEND=noninteractive && \
-  apt update && \
-  apt install -y ca-certificates && \
+  apt-get update && \
+  apt-get install -y ca-certificates && \
   rm -rf /var/lib/apt/lists/*; \
 fi
 
