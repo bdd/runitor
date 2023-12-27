@@ -4,22 +4,18 @@
   description = "runitor";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-23.05-darwin";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-23.11-darwin";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, flake-utils }: flake-utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, flake-utils }: flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = import nixpkgs { inherit system; };
-      pkgs-unstable = import nixpkgs-unstable { inherit system; };
-      buildGo121Module = pkgs-unstable.buildGo121Module;
-
-      runitor = pkgs-unstable.buildGo121Module rec {
+      runitor = pkgs.buildGoModule rec {
         pname = "runitor";
         revDate = builtins.substring 0 8 (self.lastModifiedDate or "19700101");
         version = "${revDate}-${self.shortRev or "dirty"}";
-        vendorSha256 = null;
+        vendorHash = null;
         src = ./.;
         CGO_ENABLED = 0;
         ldflags = [ "-s" "-w" "-X main.Version=v${version}" ];
@@ -41,16 +37,16 @@
         };
       };
 
-      enumer = pkgs-unstable.buildGo121Module rec {
+      enumer = pkgs.buildGoModule rec {
         pname = "enumer";
-        version = "1.5.8";
+        version = "1.5.9";
         src = pkgs.fetchFromGitHub {
           owner = "dmarkham";
           repo = "enumer";
           rev = "v${version}";
-          sha256 = "sha256-+YTsXYWVmJ32V/Eptip3WAiqIYv+6nqbdph0K2XzLdc=";
+          hash = "sha256-NYL36GBogFM48IgIWhFa1OLZNUeEi0ppS6KXybnPQks=";
         };
-        vendorSha256 = "sha256-+dCitvPz2JUbybXVJxUOo1N6+SUPCSjlacL8bTSlb7w=";
+        vendorHash = "sha256-CJCay24FlzDmLjfZ1VBxih0f+bgBNu+Xn57QgWT13TA=";
         meta = {
           description = "A Go tool to auto generate methods for your enums";
           license = pkgs.lib.licenses.bsd2;
@@ -64,7 +60,7 @@
         default = pkgs.mkShell {
           buildInputs = [
             # build
-            pkgs-unstable.go_1_21
+            pkgs.go
             self.packages.${system}.enumer
 
             # release
