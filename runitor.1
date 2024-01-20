@@ -1,0 +1,108 @@
+.TH "runitor" "1" "20 Jan 2024" "runitor 1.21.3" "User Commands"
+.\" prefix=/usr
+.P
+.SH "NAME"
+.P
+runitor \- capture command and report result to https://healthchecks.io or a
+private instance
+.P
+.SH "SYNOPSIS"
+.P
+.nf
+runitor [OPTION...] -- <command>
+.fi
+.P
+.SH "DESCRIPTION"
+.P
+Runitor runs the supplied command, captures its output, and based on its exit code reports successful or failed execution to https://healthchecks.io or your private instance.
+.P
+Healthchecks.io is a web service for monitoring periodic tasks. It's like a dead man's switch for your cron jobs. You get alerted if they don't run on time or terminate with a failure.
+.P
+.SH "USAGE EXAMPLES"
+.P
+.SH "Certificate Renewal"
+.P
+.nf
+# (Using per check UUIDs.)
+export CHECK_UUID=8116e449-d71c-4112-8f5d-a66f60902091
+runitor -- dehydrated --cron --config example.com.conf
+.fi
+.P
+.SH "Repository Maintenance"
+.P
+.nf
+# Run the maintenance script 10 times a day (24h/10 = 2h 24m)
+# (Using per-project ping key, and check slugs.)
+export HC_PING_KEY=edf72661-62ff-49e7-a921-33b41502d7e7
+runitor -slug git-repo-maintenance \\
+    -every 2h24m -- \\
+    /script/git-maint
+.fi
+.P
+.SH "Backup"
+.P
+When invoked with \fB-every <duration>\fP flag, runitor will also act as a basic
+task scheduler.
+.P
+Sometimes you may not want to restart the process or the container just to force
+an immediate run. Instead, you can send \fPSIGALRM\fP to runitor to get it run
+the command right away and reset the interval.
+.P
+.nf
+# Do not attach output to ping.
+# Backup software may leak filenames and paths.
+
+runitor -no-output-in-ping -- restic backup /home /etc
+.fi
+.P
+.SH "Triggering an Immediate Run in Periodic Mode"
+.P
+.nf
+pkill -ALRM runitor
+.fi
+.P
+.SH "ENVIRONMENT VARIABLES"
+.P
+.IP "\fBHC_API_URL\fP"
+The API URL of the Healthchecks.io instance.
+.IP "\fBHC_PING_KEY\fP"
+The ping key.
+.IP "\fBCHECK_SLUG\fP"
+The check slug.
+.IP "\fBCHECK_UUID\fP"
+The check UUID.
+.P
+.SH "MORE ON WHAT healthchecks.io PROVIDES"
+.P
+.IP o
+It listens for HTTP requests (pings) from services being monitored.
+.IP o
+It keeps silent as long as pings arrive on time. It raises an alert as soon as a ping does not arrive on time.
+.IP o
+Pings can signal start of execution so run durations can be tracked.
+.IP o
+Pings can explicitly signal failure of execution so an alert can be send.
+.IP o
+Pings can attach up to 100KB of logs. Runitor automatically handles truncation if needed.
+.IP o
+It can alert you via email, SMS, WhatsApp, Slack, and many more services.
+.IP o
+It has a free tier with up to 20 checks.
+.IP o
+Software behind the service is open source. You can run your own instance if you'd like to.
+.P
+.SH "SEE ALSO"
+.P
+\fBcurl\fP(1)
+.P
+.SH "BUGS"
+.P
+Please report bugs at https://github.com/bdd/runitor/issues!
+.P
+.SH "VERSION"
+.P
+This manpage is current for version 1.21.3 of runitor.
+.P
+.SH "AUTHOR"
+.P
+Berk D. Demir (bdd)
