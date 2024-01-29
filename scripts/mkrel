@@ -35,4 +35,4 @@ fi
 gh release create ${prerelease} "${tag}" "${BUILD_DIR}"/*
 
 # Nudge Go module proxy
-curl https://proxy.golang.org/github.com/bdd/runitor/@latest
+curl --proto '=https' --tlsv1.2 -LSsf https://proxy.golang.org/github.com/bdd/runitor/@latest

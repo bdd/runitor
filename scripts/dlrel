@@ -25,7 +25,7 @@ case "${rel}" in
 esac
 
 if [[ ${rel} == "list" ]]; then
-  curl -Ssf "${API_RELEASES}" | jq -r  '.[].tag_name'
+  curl --proto '=https' --tlsv1.2 -LSsf "${API_RELEASES}" | jq -r  '.[].tag_name'
   exit 0
 fi
 
@@ -39,7 +39,7 @@ fi
 # Create a brace expansion URL list for curl from release asset download URLs.
 # e.g. {url1,url2,url3,...}
 asset_dl_urls_for_curl=$(
-  curl -Ssf "${API_RELEASES}/${relpath}" \
+  curl --proto '=https' --tlsv1.2 -LSsf "${API_RELEASES}/${relpath}" \
     | jq --raw-output --arg dl_url_base "${DL_URL_BASE}" --arg platspec "${platspec}" \
     '
       .tag_name as $tag
@@ -61,7 +61,7 @@ asset_dl_urls_for_curl=$(
 if [[ -z ${DOWNLOAD_DIR-} ]]; then
   DOWNLOAD_DIR="github-release-${rel}"
 fi
-curl -LOSsf \
+curl --proto '=https' --tlsv1.2 -LSsf -O \
   --output-dir "${DOWNLOAD_DIR}" \
   --create-dirs \
   "${asset_dl_urls_for_curl}"

@@ -31,7 +31,7 @@ releasedir="${1-${PWD}}"
   ssh-keygen -Y verify \
     -I "${SIGNER_IDENTITY}" \
     -n "${SIGNATURE_NAMESPACE}" \
-    -f <(curl -Lsf "${ALLOWED_SIGNERS_URL}") \
+    -f <(curl --proto '=https' --tlsv1.2 -LSsf "${ALLOWED_SIGNERS_URL}") \
     -s SHA256.sig < SHA256
 
   "${SHA256SUM}" --ignore-missing -c SHA256

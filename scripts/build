@@ -25,7 +25,7 @@ mkdir -p "${BUILD_DIR}"
 GO="${GO:-go}"
 if [[ ${GO} != "go" ]]; then
   if [[ ${GO} == "latest" ]]; then
-    GO=$(curl -LSsf 'https://go.dev/VERSION?m=text' | grep -E '^go[0-9.]+$')
+    GO=$(curl --proto '=https' --tlsv1.2 -LSsf 'https://go.dev/VERSION?m=text' | grep -E '^go[0-9.]+$')
   fi
 
   if [[ ${GO} == $(go env GOVERSION) ]]; then
