@@ -44,6 +44,7 @@ build() {
 
   for rt in "${RUNTIMES[@]}"; do
     rel_manifest="runitor:${RELEASE}-${rt}"
+    rel_major_manifest="runitor:${RELEASE_MAJOR}-${rt}"
     rti_manifest="runitor:${rt}"
 
     if podman manifest exists "${rel_manifest}"; then
@@ -57,29 +58,33 @@ build() {
       --timestamp="${rel_ts}" \
       --platform "${PLATFORMS}" \
       --build-arg RELEASE="${RELEASE}" \
+      --build-arg RELBUILD="${RELBUILD-${RELEASE}}" \
       --build-arg RUNTIME_IMG="docker.io/library/${rt}:latest" \
       --manifest "${rel_manifest}" \
       .
 
+    podman image tag "${rel_manifest}" "${rel_major_manifest}"
     podman image tag "${rel_manifest}" "${rti_manifest}"
   done
 
   podman image tag "runitor:${DEFAULT_RUNTIME}" "runitor:${RELEASE}"
-  podman image tag "runitor:${RELEASE}" "runitor:latest"
+  podman image tag "runitor:${DEFAULT_RUNTIME}" "runitor:${RELEASE_MAJOR}"
+  podman image tag "runitor:${DEFAULT_RUNTIME}" "runitor:latest"
 }
 
 push() {
   local manifests=()
 
-  if (( $# > 1 )); then
+  if (( $# > 0 )); then
     manifests+=("$@")
   else
     for rt in "${RUNTIMES[@]}"; do
       manifests+=("runitor:${RELEASE}-${rt}" "runitor:${rt}")
     done
+
+    manifests+=("runitor:${RELEASE}" "runitor:${RELEASE_MAJOR}" "runitor:latest")
   fi
 
-  manifests+=("runitor:${RELEASE}" "runitor:latest")
 
   local registry_namespace
   for registry_namespace in "docker.io/runitor" "ghcr.io/bdd"; do
@@ -107,10 +112,12 @@ clean() {
   done
 }
 
+RELEASE_MAJOR=${RELEASE-%%.:*}
+
 case "$1" in
   clean) clean ;;
   build) build ;;
-  push) push "$@" ;;
+  push) shift; push "$@" ;;
   *)
     echo "usage: $0 build | push | clean" >&2
     exit 64 # EX_USAGE
