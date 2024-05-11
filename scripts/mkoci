@@ -44,8 +44,6 @@ build() {
 
   for rt in "${RUNTIMES[@]}"; do
     rel_manifest="runitor:${RELEASE}-${rt}"
-    rel_major_manifest="runitor:${RELEASE_MAJOR}-${rt}"
-    rti_manifest="runitor:${rt}"
 
     if podman manifest exists "${rel_manifest}"; then
       echo "manifest ${rel_manifest} already exists. deleting..." >/dev/stderr
@@ -62,14 +60,46 @@ build() {
       --build-arg RUNTIME_IMG="docker.io/library/${rt}:latest" \
       --manifest "${rel_manifest}" \
       .
+  done
+}
+
+tag() {
+  tag_short
+  tag_default
+}
+
+tag_rt_shorts() {
+  local rt
+
+  for rt in "${RUNTIMES[@]}"; do
+    rel_manifest="runitor:${RELEASE}-${rt}"
+    rel_major_manifest="runitor:${RELEASE_MAJOR}-${rt}"
+    rti_manifest="runitor:${rt}"
 
     podman image tag "${rel_manifest}" "${rel_major_manifest}"
     podman image tag "${rel_manifest}" "${rti_manifest}"
   done
+}
 
+tag_default_rt() {
   podman image tag "runitor:${DEFAULT_RUNTIME}" "runitor:${RELEASE}"
   podman image tag "runitor:${DEFAULT_RUNTIME}" "runitor:${RELEASE_MAJOR}"
   podman image tag "runitor:${DEFAULT_RUNTIME}" "runitor:latest"
+}
+
+all_tags() {
+  local -n tags_arr=$1
+
+  local rt
+  for rt in "${RUNTIMES[@]}"; do
+    rel_manifest="runitor:${RELEASE}-${rt}"
+    rel_major_manifest="runitor:${RELEASE_MAJOR}-${rt}"
+    rti_manifest="runitor:${rt}"
+
+    tags_arr+=("${rel_manifest}" "${rel_major_manifest}" "${rti_manifest}")
+  done
+
+  tags_arr+=("runitor:${RELEASE}" "runitor:${RELEASE_MAJOR}" "runtime:latest")
 }
 
 push() {
@@ -78,13 +108,8 @@ push() {
   if (( $# > 0 )); then
     manifests+=("$@")
   else
-    for rt in "${RUNTIMES[@]}"; do
-      manifests+=("runitor:${RELEASE}-${rt}" "runitor:${rt}")
-    done
-
-    manifests+=("runitor:${RELEASE}" "runitor:${RELEASE_MAJOR}" "runitor:latest")
+    all_tags manifests
   fi
-
 
   local registry_namespace
   for registry_namespace in "docker.io/runitor" "ghcr.io/bdd"; do
@@ -112,13 +137,28 @@ clean() {
   done
 }
 
-RELEASE_MAJOR=${RELEASE-%%.:*}
+RELEASE_MAJOR=${RELEASE%%.*}
 
 case "$1" in
   clean) clean ;;
   build) build ;;
+  tag_rt_shorts) tag_rt_shorts ;;
+  tag_default_rt) tag_default_rt ;;
   push) shift; push "$@" ;;
+
+  release)
+    build
+    tag_rt_shorts
+    tag_default_rt
+    push
+    ;;
+
+  tags)
+    declare -a tags
+    all_tags tags
+    echo "${tags[@]}" | tr ' ' '\n'
+    ;;
   *)
-    echo "usage: $0 build | push | clean" >&2
+    echo "usage: $0 build | tag | push | clean" >&2
     exit 64 # EX_USAGE
 esac
