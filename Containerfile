@@ -1,6 +1,7 @@
-ARG BUILDER_IMG=docker.io/alpine:latest
+ARG BUILDER_IMG=docker.io/library/alpine:latest
+ARG RUNTIME_IMG
+
 FROM --platform=${BUILDPLATFORM} ${BUILDER_IMG} AS build
-ARG RELEASE
 ARG RELBUILD
 ARG TARGETOS
 ARG TARGETARCH
@@ -8,8 +9,6 @@ RUN apk add bash coreutils curl jq openssh-keygen
 COPY scripts/dlrel scripts/verify /usr/local/bin/
 RUN DOWNLOAD_DIR=/tmp/rel dlrel ${RELBUILD} ${TARGETOS} ${TARGETARCH}
 
-ARG RUNTIME_IMG
-ARG TARGETPLATFORM
 FROM --platform=${TARGETPLATFORM} ${RUNTIME_IMG}
 ARG RELEASE
 ARG RELBUILD
