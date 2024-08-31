@@ -99,7 +99,7 @@ all_tags() {
     tags_arr+=("${rel_manifest}" "${rel_major_manifest}" "${rti_manifest}")
   done
 
-  tags_arr+=("runitor:${RELEASE}" "runitor:${RELEASE_MAJOR}" "runtime:latest")
+  tags_arr+=("runitor:${RELEASE}" "runitor:${RELEASE_MAJOR}" "runitor:latest")
 }
 
 push() {
