@@ -11,7 +11,7 @@ WORKTREE="${WORKTREE:-${tld}}"
 
 # Allow specifying alternate BUILD_DIR for the unlikely case of the user
 # actually knowing what they're doing.
-BUILD_DIR="${BUILD_DIR:-"${WORKTREE}/build"}"
+BUILD_DIR="${BUILD_DIR:-"build"}"
 mkdir -p "${BUILD_DIR}"
 
 # Allow specifying alternate Go version to be used for build.
@@ -42,7 +42,7 @@ fi
 CGO_ENABLED="CGO_ENABLED=${CGO_ENABLED:-0}"
 
 build() {
-  env ${CGO_ENABLED} ${GO} build -o "${BUILD_DIR}/" "${WORKTREE}/cmd/${name}"
+  env "${CGO_ENABLED}" "${GO}" build -C "${WORKTREE}" -o "${BUILD_DIR}/" "./cmd/${name}"
 }
 
 mk_sha256() {
@@ -97,7 +97,7 @@ build_dist() {
   fi
 
   local out="${BUILD_DIR}/${name}-${ver}-${goos}-${goarch}${fn_suffix}"
-  env "${CGO_ENABLED}" "${GO}" build "${flags[@]}" -o "${out}" ${WORKTREE}/cmd/${name}
+  env "${CGO_ENABLED}" "${GO}" build -C "${WORKTREE}" "${flags[@]}" -o "${out}" "./cmd/${name}"
   echo "${out}"
 }
 

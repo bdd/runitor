@@ -4,22 +4,26 @@
 set -euo pipefail
 
 if (($# != 1)); then
-  echo "usage: $0 vX.X.X" >&2
+  echo "usage: $0 vX.Y.Z" >&2
   exit 64 # EX_USAGE
 fi
 
 tag=$1
+
+# Allow specifying alternate working tree to build using main working tree scripts.
+tld=$(git rev-parse --show-toplevel)
+WORKTREE="${WORKTREE:-${tld}}"
+BUILD_DIR="${WORKTREE}/build/rel-${tag}"
+
+echo "Touch YubiKey for git tag"
+git -C "${WORKTREE}" tag --sign --annotate "${tag}"
+
+echo "Touch YubiKey for git push"
+git -C "${WORKTREE}" push --tags
+
 HERE="$(cd "$(dirname "$0")"; pwd -P)"
-BUILD_DIR=$(git rev-parse --show-toplevel)/build/rel-${tag}
-
-echo "Touch Yubikey for git tag"
-git tag -a "${tag}"
-
-echo "Touch Yubikey for git push"
-git push --tags
-
 if [[ -d ${BUILD_DIR} ]]; then rm -r "${BUILD_DIR}"; fi
-GO=latest BUILD_DIR=${BUILD_DIR} "${HERE}"/build dist-all
+GO=${GO:-latest} BUILD_DIR=${BUILD_DIR} bash -x "${HERE}"/build dist-all
 
 echo "Touch Yubikey for ssh signing"
 "${HERE}"/sign "${BUILD_DIR}"
@@ -34,5 +38,5 @@ fi
 
 gh release create ${prerelease} "${tag}" "${BUILD_DIR}"/*
 
-# Nudge Go module proxy
+echo "Nudging Go Module Proxy"
 curl --proto '=https' --tlsv1.2 -LSsf https://proxy.golang.org/github.com/bdd/runitor/@latest
