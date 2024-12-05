@@ -28,8 +28,12 @@ func createLockFile(args []string) (*os.File, error) {
 	dirs := []string{
 		filepath.Join("/dev/shm", Name+"_"+USER),
 		filepath.Join(os.TempDir(), Name+"_"+USER),
-		filepath.Join(usr.HomeDir, ".cache"),
 	}
+	xdgCacheHome := os.Getenv("XDG_CACHE_HOME")
+	if xdgCacheHome != "" {
+		dirs = append(dirs, filepath.Join(xdgCacheHome))
+	}
+	dirs = append(dirs, filepath.Join(usr.HomeDir, ".cache"))
 
 	for _, dir := range dirs {
 		if isWritableAndOwned(dir) {
