@@ -25,30 +25,21 @@ func createLockFile(args []string) (*os.File, error) {
 
 	var DIR string
 
-	dirs := []string{usr.HomeDir}
-	globPattern := fmt.Sprintf("/dev/shm/%s_%s*", Name, USER)
-	shmDirs, _ := filepath.Glob(globPattern)
-	dirs = append(dirs, shmDirs...)
+	dirs := []string{
+		filepath.Join("/dev/shm", Name+"_"+USER),
+		filepath.Join(os.TempDir(), Name+"_"+USER),
+		filepath.Join(usr.HomeDir, ".cache"),
+	}
 
 	for _, dir := range dirs {
-		if isWritableAndOwned(dir, usr) {
+		if isWritableAndOwned(dir) {
 			DIR = dir
 			break
 		}
 	}
 
-	if DIR != "" && isWritableAndOwned(DIR, usr) {
-		DIR = filepath.Join(DIR, ".cache", Name)
-	} else {
-		tempDir, err := os.MkdirTemp("/dev/shm", fmt.Sprintf("%s_%s_XXXXXXXX", Name, USER))
-		if err != nil {
-			return nil, fmt.Errorf("could not create temporary directory: %w", err)
-		}
-		DIR = filepath.Join(tempDir, ".cache", Name)
-	}
-
-	if err := os.MkdirAll(DIR, 0700); err != nil {
-		return nil, fmt.Errorf("could not create cache directory: %w", err)
+	if DIR == "" {
+		return nil, fmt.Errorf("could not find a writable cache directory")
 	}
 
 	cmd := strings.Join(args, " ")
@@ -73,24 +64,28 @@ func createLockFile(args []string) (*os.File, error) {
 }
 
 // isWritableAndOwned checks if the path is writable and owned by the user
-func isWritableAndOwned(path string, usr *user.User) bool {
+func isWritableAndOwned(path string) bool {
 	info, err := os.Stat(path)
-	if err != nil {
+	if os.IsNotExist(err) {
+		if err := os.MkdirAll(path, 0700); err != nil {
+			return false
+		}
+		info, err = os.Stat(path)
+		if err != nil {
+			return false
+		}
+	} else if err != nil {
 		return false
 	}
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
-		return false
-	}
-	if fmt.Sprint(stat.Uid) != usr.Uid {
-		return false
-	}
-	if info.Mode().Perm()&(1<<(uint(7))) == 0 {
-		return false
-	}
+
 	if !info.IsDir() {
 		return false
 	}
+
+	if info.Mode().Perm()&(1<<(uint(7))) == 0 {
+		return false
+	}
+
 	return true
 }
 
