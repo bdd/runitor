@@ -14,35 +14,14 @@ WORKTREE="${WORKTREE:-${tld}}"
 BUILD_DIR="${BUILD_DIR:-"build"}"
 mkdir -p "${BUILD_DIR}"
 
-# Allow specifying alternate Go version to be used for build.
-#
-# If desired version in `goX.Y.Z` is not in PATH, it's downloaded.
-# Symbolic name "lastest" is resolved to latest Go version from a well-known
-# URL.
-#
-# Go's executable install directory ($GOBIN -> $GOPATH/bin -> $HOME/go/bin)
-# _must_ be in the PATH.
-GO="${GO:-go}"
-if [[ ${GO} != "go" ]]; then
-  if [[ ${GO} == "latest" ]]; then
-    GO=$(curl --proto '=https' --tlsv1.2 -LSsf 'https://go.dev/VERSION?m=text' | grep -E '^go[0-9.]+$')
-  fi
-
-  if [[ ${GO} == $(go env GOVERSION) ]]; then
-    # wanted go version is the default go.
-    GO=go
-  elif ! type -p "${GO}"; then
-    GOBIN=${GOBIN:-$(go env GOPATH | cut -d: -f1)/bin}
-    go install "golang.org/dl/${GO}@latest"
-    GO="${GOBIN}/${GO}"
-    "${GO}" download
-  fi
+if [[ -n ${GOTOOLCHAIN-} ]]; then
+  export GOTOOLCHAIN
 fi
 
-CGO_ENABLED="CGO_ENABLED=${CGO_ENABLED:-0}"
+export CGO_ENABLED="${CGO_ENABLED-0}"
 
 build() {
-  env "${CGO_ENABLED}" "${GO}" build -C "${WORKTREE}" -o "${BUILD_DIR}/" "./cmd/${name}"
+  go build -C "${WORKTREE}" -o "${BUILD_DIR}/" "./cmd/${name}"
 }
 
 mk_sha256() {
@@ -127,15 +106,12 @@ build_dist_all() {
 }
 
 
-if (($# > 0)); then
-  case $1 in
-    dist) build_dist ;;
-    dist-all) build_dist_all ;;
-    *)
-      echo "usage: $0 [dist | dist-all]" >&2
-      exit 1
-      ;;
-  esac
-else
-  build
-fi
+case ${1-} in
+  "") build ;;
+  dist) build_dist ;;
+  dist-all) build_dist_all ;;
+  *)
+    echo "usage: $0 [dist | dist-all]" >&2
+    exit 1
+    ;;
+esac
