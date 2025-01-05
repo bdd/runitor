@@ -31,6 +31,7 @@ type RunConfig struct {
 	NoRunId                 bool     // Don't generate and send a run id per run in pings
 	Create                  bool     // Create a new check if slug is not found in the project
 	PingBodyLimitIsExplicit bool     // Explicit limit via flags
+	RunOne                  bool     // Run just one instance at a time of some command and unique
 	PingBodyLimit           uint     // Truncate ping body to last N bytes
 	OnSuccess               PingType // Ping type to send when command exits successfully
 	OnNonzeroExit           PingType // Ping type to send when command exits with a nonzero code
@@ -129,6 +130,7 @@ func main() {
 	noOutputInPing := flag.Bool("no-output-in-ping", false, "Don't send command's output in pings")
 	noRunId := flag.Bool("no-run-id", false, "Don't generate and send a run id per run in pings")
 	pingBodyLimit := flag.Uint("ping-body-limit", 10_000, "If non-zero, truncate the ping body to its last N bytes, including a truncation notice.")
+	runOne := flag.Bool("run-one", false, "Run just one instance at a time of some command and unique")
 	version := flag.Bool("version", false, "Show version")
 
 	reqHeaders := make(map[string]string)
@@ -198,6 +200,21 @@ func main() {
 	retries := max(0, *apiRetries) // has to be >= 0
 
 	cmd := flag.Args()
+
+	// Check if other instance is running
+	var lockFile *os.File
+	if *runOne {
+		lockFile, err = createLockFile(cmd)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if lockFile == nil {
+			os.Exit(0)
+		}
+		defer unlockAndRemove(lockFile)
+		setupSignalHandler(lockFile)
+	}
+
 	client := &APIClient{
 		BaseURL: *apiURL,
 		Retries: retries,
@@ -232,6 +249,9 @@ func main() {
 
 	// One-shot mode. Exit with command's exit code.
 	if *every == 0 {
+		if *runOne {
+			unlockAndRemove(lockFile)
+		}
 		os.Exit(exitCode)
 	}
 

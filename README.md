@@ -105,7 +105,7 @@ command right away and reset the interval.
 
 ## Usage
 
-	runitor [-uuid uuid] -- command
+	runitor [-uuid uuid] [-run-one] -- command
 
 ### Flags
 
@@ -139,6 +139,8 @@ command right away and reset the interval.
 	  Don't capture command's stdout
 	-req-header value
 	  Additional request header as "key: value" string
+	-run-one
+	  Run just one instance at a time of some command and unique
 	-silent
 	  Don't capture command's stdout or stderr
 	-slug string
