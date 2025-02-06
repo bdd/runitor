@@ -79,7 +79,7 @@ in one process per container environments.
 
 	# Run the maintenance script 10 times a day (24h/10 = 2h 24m)
 	# (Using per-project ping key, and check slugs.)
-	export HC_PING_KEY=file:/run/secrets/hc_prod_pingkey
+	export PING_KEY=file:/run/secrets/hc_prod_pingkey
 	runitor -slug git-repo-maintenance \
 		-every 2h24m -- \
 		/script/git-maint
@@ -133,7 +133,7 @@ command right away and reset the interval.
 	-ping-body-limit uint
 	      If non-zero, truncate the ping body to its last N bytes, including a truncation notice. (default 10000)
 	-ping-key string
-	      Ping Key (env: $HC_PING_KEY). Use 'file:' prefix for indirection
+	      Ping Key (env: $PING_KEY). Use 'file:' prefix for indirection
 	-quiet
 	      Don't capture command's stdout
 	-req-header value

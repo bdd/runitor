@@ -87,7 +87,7 @@ func (c *handleParams) Handle() (handle string, htype handleType, err error) {
 		handle = c.pingKey + "/" + c.slug
 		htype = KeyAndSlugHandle
 	case gotSlug:
-		err = errors.New("must also pass ping key either with '-ping-key PK' or HC_PING_KEY environment variable")
+		err = errors.New("must also pass ping key either with '-ping-key PK' or PING_KEY environment variable")
 	case gotPingKey:
 		err = errors.New("must also pass check slug with '-slug SL' or CHECK_SLUG environment variable")
 	default:
@@ -149,7 +149,7 @@ func main() {
 	apiURL := flag.String("api-url", DefaultBaseURL, "API URL (env: $HC_API_URL)")
 	apiRetries := flag.Uint("api-retries", DefaultRetries, "Number of times an API request will be retried if it fails with a transient error")
 	apiTimeout := flag.Duration("api-timeout", DefaultTimeout, "Client timeout per request")
-	pingKey := flag.String("ping-key", "", "Ping Key (env: $HC_PING_KEY). Use 'file:' prefix for indirection")
+	pingKey := flag.String("ping-key", "", "Ping Key (env: $PING_KEY). Use 'file:' prefix for indirection")
 	slug := flag.String("slug", "", "Slug of check (env: $CHECK_SLUG). Requires a ping key. Use 'file:' prefix for indirection")
 	create := flag.Bool("create", false, "Create a new check if passed slug is not found in the project")
 	uuid := flag.String("uuid", "", "UUID of check (env: $CHECK_UUID). Use 'file:' prefix for indirection")
@@ -187,7 +187,7 @@ func main() {
 	ch := &handleParams{
 		uuid:    FromFlagOrEnv(*uuid, []string{"CHECK_UUID"}),
 		slug:    FromFlagOrEnv(*slug, []string{"CHECK_SLUG"}),
-		pingKey: FromFlagOrEnv(*pingKey, []string{"HC_PING_KEY"}),
+		pingKey: FromFlagOrEnv(*pingKey, []string{"PING_KEY", "HC_PING_KEY"}),
 	}
 
 	handle, htype, err := ch.Handle()
