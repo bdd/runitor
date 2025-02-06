@@ -98,27 +98,61 @@ func (c *handleParams) Handle() (handle string, htype handleType, err error) {
 }
 
 // FromFlagOrEnv is a helper to return flg if it isn't an empty string or look
-// up the environment variable env and return its value if it's set.
-// If neither are set returned value is an empty string.
-func FromFlagOrEnv(flg, env string) string {
-	if len(flg) == 0 {
-		v, ok := os.LookupEnv(env)
-		if ok && len(v) > 0 {
-			return v
+// up the environment variables in envvar and return the first set one with
+// non-empty value.
+//
+// If the flag or environment value starts with 'file:' file at the path after
+// this prefix is read, discarding all whitespace. This is a safer alternative
+// to passing secrets via environment variables.
+//
+// Returns an empty string it no flag was empty and no usable env var was set.
+func FromFlagOrEnv(flg string, envvars []string) string {
+	const filePrefix = "file:"
+	var fromFile string
+
+	if len(flg) > 0 {
+		if strings.HasPrefix(flg, filePrefix) {
+			fromFile = flg[len(filePrefix):]
+			goto ReadFromFile
+		}
+		return flg
+	}
+
+	for _, env := range envvars {
+		val, ok := os.LookupEnv(env)
+		if ok && len(val) > 0 {
+			if strings.HasPrefix(val, filePrefix) {
+				fromFile = val[len(filePrefix):]
+				goto ReadFromFile
+			}
+
+			return val
 		}
 	}
 
-	return flg
+	return "" // not passed as a flag or environment variable
+
+ReadFromFile:
+	bytes, err := os.ReadFile(fromFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(bytes) == 0 {
+		log.Fatalf("%s is empty", fromFile)
+	}
+
+	return strings.TrimSpace(string(bytes))
 }
 
 func main() {
-	apiURL := flag.String("api-url", DefaultBaseURL, "API URL. Takes precedence over HC_API_URL environment variable")
+	apiURL := flag.String("api-url", DefaultBaseURL, "API URL (env: $HC_API_URL)")
 	apiRetries := flag.Uint("api-retries", DefaultRetries, "Number of times an API request will be retried if it fails with a transient error")
 	apiTimeout := flag.Duration("api-timeout", DefaultTimeout, "Client timeout per request")
-	pingKey := flag.String("ping-key", "", "Ping Key. Takes precedence over HC_PING_KEY environment variable")
-	slug := flag.String("slug", "", "Slug of check. Requires a ping key. Takes precedence over CHECK_SLUG environment variable")
+	pingKey := flag.String("ping-key", "", "Ping Key (env: $HC_PING_KEY). Use 'file:' prefix for indirection")
+	slug := flag.String("slug", "", "Slug of check (env: $CHECK_SLUG). Requires a ping key. Use 'file:' prefix for indirection")
 	create := flag.Bool("create", false, "Create a new check if passed slug is not found in the project")
-	uuid := flag.String("uuid", "", "UUID of check. Takes precedence over CHECK_UUID environment variable")
+	uuid := flag.String("uuid", "", "UUID of check (env: $CHECK_UUID). Use 'file:' prefix for indirection")
 	every := flag.Duration("every", 0, "If non-zero, periodically run command at specified interval")
 	quiet := flag.Bool("quiet", false, "Don't capture command's stdout")
 	silent := flag.Bool("silent", false, "Don't capture command's stdout or stderr")
@@ -151,9 +185,9 @@ func main() {
 	}
 
 	ch := &handleParams{
-		uuid:    FromFlagOrEnv(*uuid, "CHECK_UUID"),
-		slug:    FromFlagOrEnv(*slug, "CHECK_SLUG"),
-		pingKey: FromFlagOrEnv(*pingKey, "HC_PING_KEY"),
+		uuid:    FromFlagOrEnv(*uuid, []string{"CHECK_UUID"}),
+		slug:    FromFlagOrEnv(*slug, []string{"CHECK_SLUG"}),
+		pingKey: FromFlagOrEnv(*pingKey, []string{"HC_PING_KEY"}),
 	}
 
 	handle, htype, err := ch.Handle()

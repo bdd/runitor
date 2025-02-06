@@ -79,7 +79,7 @@ in one process per container environments.
 
 	# Run the maintenance script 10 times a day (24h/10 = 2h 24m)
 	# (Using per-project ping key, and check slugs.)
-	export HC_PING_KEY=edf72661-62ff-49e7-a921-33b41502d7e7
+	export HC_PING_KEY=file:/run/secrets/hc_prod_pingkey
 	runitor -slug git-repo-maintenance \
 		-every 2h24m -- \
 		/script/git-maint
@@ -108,46 +108,44 @@ command right away and reset the interval.
 	runitor [-uuid uuid] -- command
 
 ### Flags
-
 	-api-retries uint
-	  Number of times an API request will be retried if it fails with a transient error (default 2)
+	      Number of times an API request will be retried if it fails with a transient error (default 2)
 	-api-timeout duration
-	  Client timeout per request (default 5s)
+	      Client timeout per request (default 5s)
 	-api-url string
-	  API URL. Takes precedence over HC_API_URL environment variable (default "https://hc-ping.com")
+	      API URL (env: $HC_API_URL) (default "https://hc-ping.com")
 	-create
-	  Create a new check if passed slug is not found in the project
+	      Create a new check if passed slug is not found in the project
 	-every duration
-	  If non-zero, periodically run command at specified interval
+	      If non-zero, periodically run command at specified interval
 	-no-output-in-ping
-	  Don't send command's output in pings
+	      Don't send command's output in pings
 	-no-run-id
-	  Don't generate and send a run id per run in pings
+	      Don't generate and send a run id per run in pings
 	-no-start-ping
-	  Don't send start ping
+	      Don't send start ping
 	-on-exec-fail value
-	  Ping type to send when runitor cannot execute the command (exit-code|success|fail|log (default fail))
+	      Ping type to send when runitor cannot execute the command (exit-code|success|fail|log (default fail))
 	-on-nonzero-exit value
-	  Ping type to send when command exits with a nonzero code (exit-code|success|fail|log (default exit-code))
+	      Ping type to send when command exits with a nonzero code (exit-code|success|fail|log (default exit-code))
 	-on-success value
-	  Ping type to send when command exits successfully (exit-code|success|fail|log (default success))
+	      Ping type to send when command exits successfully (exit-code|success|fail|log (default success))
 	-ping-body-limit uint
-	  If non-zero, truncate the ping body to its last N bytes, including a truncation notice. (default 10000)
+	      If non-zero, truncate the ping body to its last N bytes, including a truncation notice. (default 10000)
 	-ping-key string
-	  Ping Key. Takes precedence over HC_PING_KEY environment variable
+	      Ping Key (env: $HC_PING_KEY). Use 'file:' prefix for indirection
 	-quiet
-	  Don't capture command's stdout
+	      Don't capture command's stdout
 	-req-header value
-	  Additional request header as "key: value" string
+	      Additional request header as "key: value" string
 	-silent
-	  Don't capture command's stdout or stderr
+	      Don't capture command's stdout or stderr
 	-slug string
-	  Slug of check. Requires a ping key. Takes precedence over CHECK_SLUG environment variable
+	      Slug of check (env: $CHECK_SLUG). Requires a ping key. Use 'file:' prefix for indirection
 	-uuid string
-	  UUID of check. Takes precedence over CHECK_UUID environment variable
+	      UUID of check (env: $CHECK_UUID). Use 'file:' prefix for indirection
 	-version
-	  Show version
-
+	      Show version
 
 ## More on What healthchecks.io Provides
 
