@@ -11,7 +11,7 @@ import (
 // PingType is an enumerator type for PingType* constants.
 type PingType int
 
-//go:generate enumer -type PingType -trimprefix=PingType -transform=kebab
+//go:generate go tool github.com/dmarkham/enumer -type PingType -trimprefix=PingType -transform=kebab
 const (
 	PingTypeExitCode PingType = iota
 	PingTypeSuccess

@@ -4,7 +4,7 @@
   description = "runitor";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-23.11-darwin";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-24.11-darwin";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -36,32 +36,13 @@
           maintainers = [ pkgs.maintainers.bdd ];
         };
       };
-
-      enumer = pkgs.buildGoModule rec {
-        pname = "enumer";
-        version = "1.5.9";
-        src = pkgs.fetchFromGitHub {
-          owner = "dmarkham";
-          repo = "enumer";
-          rev = "v${version}";
-          hash = "sha256-NYL36GBogFM48IgIWhFa1OLZNUeEi0ppS6KXybnPQks=";
-        };
-        vendorHash = "sha256-CJCay24FlzDmLjfZ1VBxih0f+bgBNu+Xn57QgWT13TA=";
-        meta = {
-          description = "A Go tool to auto generate methods for your enums";
-          license = pkgs.lib.licenses.bsd2;
-          mainProgram = "enumer";
-          maintainers = [ pkgs.maintainers.bdd ];
-        };
-      };
     in
     {
       devShells = {
         default = pkgs.mkShell {
           buildInputs = [
             # build
-            pkgs.go
-            self.packages.${system}.enumer
+            pkgs.go_1_24
 
             # release
             pkgs.gh # create a release on github and upload artifacts
@@ -74,7 +55,7 @@
       };
 
       packages = {
-        inherit runitor enumer;
+        inherit runitor;
         default = runitor;
       };
     }
