@@ -76,7 +76,7 @@ build_dist() {
   fi
 
   local out="${BUILD_DIR}/${name}-${ver}-${goos}-${goarch}${fn_suffix}"
-  env "${CGO_ENABLED}" "${GO}" build -C "${WORKTREE}" "${flags[@]}" -o "${out}" "./cmd/${name}"
+  env "CGO_ENABLED=${CGO_ENABLED}" go build -C "${WORKTREE}" "${flags[@]}" -o "${out}" "./cmd/${name}"
   echo "${out}"
 }
 

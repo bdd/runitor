@@ -23,7 +23,7 @@ git -C "${WORKTREE}" push --tags
 
 HERE="$(cd "$(dirname "$0")"; pwd -P)"
 if [[ -d ${BUILD_DIR} ]]; then rm -r "${BUILD_DIR}"; fi
-GO=${GO:-latest} BUILD_DIR=${BUILD_DIR} bash -x "${HERE}"/build dist-all
+GOTOOLCHAIN=${GOTOOLCHAIN:-auto} BUILD_DIR=${BUILD_DIR} bash -x "${HERE}"/build dist-all
 
 echo "Touch Yubikey for ssh signing"
 "${HERE}"/sign "${BUILD_DIR}"
