@@ -4,7 +4,7 @@ pkgs.buildGo124Module rec {
   pname = "runitor";
   revDate = builtins.substring 0 8 (self.lastModifiedDate or "19700101");
   version = "${revDate}-${self.shortRev or "dirty"}";
-  vendorHash = "sha256-1atQ9ouvhpc2eOkf+nl1w4OK9xhYVx3ZweeZGcMYPSw=";
+  vendorHash = "sha256-SYYAAtuWt/mTmZPBilYxf2uZ6OcgeTnobYiye47i8mI=";
   src = ./.;
   env.CGO_ENABLED = 0;
   ldflags = [
