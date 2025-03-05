@@ -50,10 +50,7 @@ mk_sha256() {
 build_dist() {
   declare -a flags ldflags
 
-  # -s: disable symbol table
-  # -w: disable DWARF generation
-  #     (-s implies -w everywhere but Darwin)
-  ldflags+=('-s -w')
+  ldflags+=('-s')
 
   # embed version tag at link time
   local ver

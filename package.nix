@@ -9,7 +9,6 @@ pkgs.buildGo124Module rec {
   env.CGO_ENABLED = 0;
   ldflags = [
     "-s"
-    "-w"
     "-X main.Version=v${version}"
   ];
   meta = {
