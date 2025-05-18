@@ -28,6 +28,7 @@ var (
 	TestPingParamsWithRID       = PingParams{RunId: TestRunId}
 	TestPingParamsWithCreate    = PingParams{Create: true}
 	TestPingParamsWithRIDCreate = PingParams{RunId: TestRunId, Create: true}
+	TestPingBody                = []byte("Test Ping Body")
 )
 
 // Tests if APIClient makes requests with the expected method, content-type,
@@ -141,7 +142,11 @@ func TestPostRetries(t *testing.T) {
 		Backoff: backoff,
 	}
 
-	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, nil)
+	rb := NewRingBuffer(100)
+	rb.Write(TestPingBody)
+	bodyBytes, _ := io.ReadAll(rb)
+	pingbody := bytes.NewReader(bodyBytes)
+	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, pingbody)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -362,18 +367,16 @@ func TestNewDefaultTransportWithResumption(t *testing.T) {
 func TestContentLengthForRingBufferBody(t *testing.T) {
 	t.Parallel()
 
-	body := []byte("Hello, World!")
-
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		v := r.Header.Get("Content-Length")
-		if v != fmt.Sprintf("%d", len(body)) {
-			t.Errorf("Content-Length header should be set to %d, but got %s", len(body), v)
+		if v != fmt.Sprintf("%d", len(TestPingBody)) {
+			t.Errorf("Content-Length header should be set to %d, but got %s", len(TestPingBody), v)
 		}
 		reqBody, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf("could not read request body")
 		}
-		if string(reqBody) != string(body) {
+		if string(reqBody) != string(TestPingBody) {
 			t.Errorf("request body does not match expected body")
 		}
 	}))
@@ -386,9 +389,11 @@ func TestContentLengthForRingBufferBody(t *testing.T) {
 	}
 
 	rb := NewRingBuffer(100)
-	rb.Write(body)
+	rb.Write(TestPingBody)
+	bodyBytes, _ := io.ReadAll(rb)
+	pingbody := bytes.NewReader(bodyBytes)
 
-	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, rb)
+	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, pingbody)
 	if err != nil {
 		t.Fatalf("ping failed: %+v", err)
 	}
@@ -398,8 +403,6 @@ func TestContentLengthForRingBufferBody(t *testing.T) {
 func TestResubmitRingBufferBody(t *testing.T) {
 	t.Parallel()
 
-	body := []byte("Hello, World!")
-
 	pingReceived := false
 
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -407,7 +410,7 @@ func TestResubmitRingBufferBody(t *testing.T) {
 		if err != nil {
 			t.Errorf("could not read request body")
 		}
-		if !bytes.Equal(reqBody, body) {
+		if !bytes.Equal(reqBody, TestPingBody) {
 			t.Errorf("request body does not match expected body: %s", reqBody)
 		}
 		if r.URL.Path == "/redirect-target" {
@@ -426,9 +429,11 @@ func TestResubmitRingBufferBody(t *testing.T) {
 	}
 
 	rb := NewRingBuffer(100)
-	rb.Write(body)
+	rb.Write(TestPingBody)
+	bodyBytes, _ := io.ReadAll(rb)
+	pingbody := bytes.NewReader(bodyBytes)
 
-	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, rb)
+	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, pingbody)
 	if err != nil {
 		t.Fatalf("ping failed: %+v", err)
 	}

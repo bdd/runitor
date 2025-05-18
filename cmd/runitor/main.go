@@ -330,23 +330,18 @@ func Run(cmd []string, cfg RunConfig, handle string, p Pinger) int {
 		}
 	}
 
-	var (
-		ringbuf  *RingBuffer
-		pingbody io.ReadWriter
-	)
-
+	var bw io.Writer
 	if cfg.PingBodyLimit > 0 {
-		ringbuf = NewRingBuffer(int(cfg.PingBodyLimit))
-		pingbody = io.ReadWriter(ringbuf)
+		bw = NewRingBuffer(int(cfg.PingBodyLimit))
 	} else {
-		pingbody = new(bytes.Buffer)
+		bw = new(bytes.Buffer)
 	}
 
 	var mw io.Writer
 	if cfg.NoOutputInPing {
 		mw = io.MultiWriter(os.Stdout)
 	} else {
-		mw = io.MultiWriter(os.Stdout, pingbody)
+		mw = io.MultiWriter(os.Stdout, bw)
 	}
 
 	// WARNING:
@@ -370,34 +365,50 @@ func Run(cmd []string, cfg RunConfig, handle string, p Pinger) int {
 	case exitCode > 0 && err != nil:
 		// Successfully executed the command.
 		// Command exited with nonzero code.
-		fmt.Fprintf(pingbody, "\n[%s] %v", Name, err)
+		fmt.Fprintf(bw, "\n[%s] %v", Name, err)
 		ping = cfg.OnNonzeroExit
 
 	case exitCode == -1 && err != nil:
 		// Could not execute the command.
 		// Write to host stderr and the ping body.
-		w := io.MultiWriter(os.Stderr, pingbody)
+		w := io.MultiWriter(os.Stderr, bw)
 		fmt.Fprintf(w, "[%s] %v\n", Name, err)
 		ping = cfg.OnExecFail
 		exitCode = 1
 	}
 
-	if ringbuf != nil && ringbuf.Wrapped() {
-		fmt.Fprintf(pingbody, "\n[%s] Output truncated to last %d bytes.", Name, ringbuf.Cap())
+	var body io.ReadSeeker
+	switch b := bw.(type) {
+	case *bytes.Buffer:
+		body = bytes.NewReader(b.Bytes())
+	case *RingBuffer:
+		if b.Wrapped() {
+			fmt.Fprintf(bw, "\n[%s] Output truncated to last %d bytes.", Name, b.Cap())
+		}
+		body = b
+	default:
+		// This should never happen. But instead of panic()ing, try to
+		// salvage the reporting by dropping the unknown buffer type
+		// and creating a simple byte buffer so we can report something
+		// to the healthchecks server.
+		var bb bytes.Buffer
+		w := io.MultiWriter(os.Stderr, &bb)
+		fmt.Fprintf(w, "[%s] BUG: Output lost due to unknown ping body type: %T\n", Name, b)
+		body = bytes.NewReader(bb.Bytes())
 	}
 
 	switch ping {
 	case PingTypeSuccess:
-		_, err = p.PingSuccess(handle, params, pingbody)
+		_, err = p.PingSuccess(handle, params, body)
 	case PingTypeFail:
-		_, err = p.PingFail(handle, params, pingbody)
+		_, err = p.PingFail(handle, params, body)
 	case PingTypeLog:
-		_, err = p.PingLog(handle, params, pingbody)
+		_, err = p.PingLog(handle, params, body)
 	default:
 		// A safe default: PingExitCode
 		// It's too late error out here.
 		// Command got executed. We need to deliver a ping.
-		_, err = p.PingExitCode(handle, params, exitCode, pingbody)
+		_, err = p.PingExitCode(handle, params, exitCode, body)
 	}
 
 	if err != nil {

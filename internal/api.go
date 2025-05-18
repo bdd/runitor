@@ -8,7 +8,6 @@
 package internal
 
 import (
-	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -75,10 +74,10 @@ func retriableResponse(code int) bool {
 // https://healthchecks.io/docs/http_api/
 type Pinger interface {
 	PingStart(handle string, params PingParams) (*InstanceConfig, error)
-	PingLog(handle string, params PingParams, body io.Reader) (*InstanceConfig, error)
-	PingSuccess(handle string, params PingParams, body io.Reader) (*InstanceConfig, error)
-	PingFail(handle string, params PingParams, body io.Reader) (*InstanceConfig, error)
-	PingExitCode(handle string, params PingParams, exitCode int, body io.Reader) (*InstanceConfig, error)
+	PingLog(handle string, params PingParams, body io.ReadSeeker) (*InstanceConfig, error)
+	PingSuccess(handle string, params PingParams, body io.ReadSeeker) (*InstanceConfig, error)
+	PingFail(handle string, params PingParams, body io.ReadSeeker) (*InstanceConfig, error)
+	PingExitCode(handle string, params PingParams, exitCode int, body io.ReadSeeker) (*InstanceConfig, error)
 }
 
 type PingParams struct {
@@ -144,21 +143,19 @@ func (c *InstanceConfig) FromResponse(resp *http.Response) {
 //
 // User-Agent:
 // If c.UserAgent is not empty, it overrides http.Client's default header.
-func (c *APIClient) Post(url, contentType string, body io.Reader) (resp *http.Response, err error) {
-	// Convert a RingBuffer to a bytes.Reader so that http.Client can read it
-	// multiple times, and automatically set Content-Length to the length of the
-	// buffer.
-	if rb, ok := body.(*RingBuffer); ok {
-		bodyBytes, err := io.ReadAll(rb)
-		if err != nil {
-			return nil, err
-		}
-		body = bytes.NewReader(bodyBytes)
-	}
-
+func (c *APIClient) Post(url, contentType string, body io.ReadSeeker) (resp *http.Response, err error) {
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
 		return nil, err
+	}
+
+	// net.http.NewRequestWithContext automatically sets the content-type
+	// header for *bytes.Buffer, *bytes.Reader, and *strings.Reader body
+	// types.
+	// We set it explicitly for RingBuffer bodies and avoid chunked
+	// transfer encoding.
+	if rb, ok := body.(*RingBuffer); ok {
+		req.ContentLength = int64(rb.Len())
 	}
 
 	if c.ReqHeaders != nil {
@@ -180,6 +177,11 @@ func (c *APIClient) Post(url, contentType string, body io.Reader) (resp *http.Re
 
 	var tries uint
 Try:
+	// Rewind
+	if body != nil {
+		body.Seek(0, io.SeekStart)
+	}
+
 	// Linear backoff at second granularity
 	time.Sleep(time.Duration(tries) * backoffStep)
 
@@ -223,29 +225,29 @@ func (c *APIClient) PingStart(handle string, params PingParams) (*InstanceConfig
 
 // PingSuccess sends a success ping for the check handle and attaches body as
 // the logged context.
-func (c *APIClient) PingSuccess(handle string, params PingParams, body io.Reader) (*InstanceConfig, error) {
+func (c *APIClient) PingSuccess(handle string, params PingParams, body io.ReadSeeker) (*InstanceConfig, error) {
 	return c.ping(handle, params, "", body)
 }
 
 // PingFail sends a failure ping for the check handle and attaches body as the
 // logged context.
-func (c *APIClient) PingFail(handle string, params PingParams, body io.Reader) (*InstanceConfig, error) {
+func (c *APIClient) PingFail(handle string, params PingParams, body io.ReadSeeker) (*InstanceConfig, error) {
 	return c.ping(handle, params, "fail", body)
 }
 
 // PingLog sends a logging only ping for the check handle and attaches body as
 // the logged context.
-func (c *APIClient) PingLog(handle string, params PingParams, body io.Reader) (*InstanceConfig, error) {
+func (c *APIClient) PingLog(handle string, params PingParams, body io.ReadSeeker) (*InstanceConfig, error) {
 	return c.ping(handle, params, "log", body)
 }
 
 // PingExitCode sends the exit code of the monitored command for the check handle
 // and attaches body as the logged context.
-func (c *APIClient) PingExitCode(handle string, params PingParams, exitCode int, body io.Reader) (*InstanceConfig, error) {
+func (c *APIClient) PingExitCode(handle string, params PingParams, exitCode int, body io.ReadSeeker) (*InstanceConfig, error) {
 	return c.ping(handle, params, fmt.Sprintf("%d", exitCode), body)
 }
 
-func (c *APIClient) ping(handle string, params PingParams, typePath string, body io.Reader) (*InstanceConfig, error) {
+func (c *APIClient) ping(handle string, params PingParams, typePath string, body io.ReadSeeker) (*InstanceConfig, error) {
 	u, err := url.Parse(c.BaseURL)
 	if err != nil {
 		return nil, err
