@@ -18,10 +18,45 @@ var ErrReadOnly = errors.New("read only")
 // At first read, ring buffer becomes read only, refusing further writes with
 // ErrReadOnly error.
 type RingBuffer struct {
-	buf      []byte
-	idx      int
-	unread   int
-	readonly bool
+	buf         []byte
+	idx         int
+	idxAtClose  int
+	unread      int
+	writeClosed bool
+}
+
+func (r *RingBuffer) writeClose() {
+	if r.writeClosed {
+		return
+	}
+
+	r.writeClosed = true
+	r.unread = r.Len()
+
+	if !r.Wrapped() {
+		r.idx = 0
+	}
+
+	r.idxAtClose = r.idx
+}
+
+// Seek implements io.Seeker.
+// Only io.SeekStart whence is supported.
+func (r *RingBuffer) Seek(offset int64, whence int) (int64, error) {
+	r.writeClose()
+
+	if whence != io.SeekStart {
+		return 0, errors.New("RingBuffer: invalid whence")
+	}
+
+	if offset < 0 {
+		return 0, errors.New("RingBuffer.Seek: negative position")
+	}
+
+	r.idx = (r.idxAtClose + int(offset)) % r.Cap()
+	r.unread = r.Len() - int(offset)
+
+	return offset, nil
 }
 
 // Len returns the length of the ring buffer.
@@ -40,7 +75,7 @@ func (r *RingBuffer) Wrapped() bool {
 }
 
 func (r *RingBuffer) Write(p []byte) (n int, err error) {
-	if r.readonly {
+	if r.writeClosed {
 		return 0, ErrReadOnly
 	}
 
@@ -77,14 +112,7 @@ func (r *RingBuffer) write(p []byte) (n int) {
 }
 
 func (r *RingBuffer) Read(p []byte) (n int, err error) {
-	if !r.readonly {
-		r.readonly = true
-		r.unread = r.Len()
-
-		if !r.Wrapped() {
-			r.idx = 0
-		}
-	}
+	r.writeClose()
 
 	if r.unread == 0 {
 		if len(p) == 0 {

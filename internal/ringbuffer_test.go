@@ -13,20 +13,39 @@ import (
 
 const RCap = 8
 
-func TestRead(t *testing.T) {
-	tests := map[string]struct {
-		str string
-		out string
-	}{
-		"empty":     {str: "", out: ""},
-		"half full": {str: "0123", out: "0123"},
-		"full":      {str: "01234567", out: "01234567"},
-		"wrapped":   {str: "0123456789", out: "23456789"},
-	}
+var ReadbackTests = map[string]struct {
+	str string
+	out string
+}{
+	"empty":     {str: "", out: ""},
+	"half full": {str: "0123", out: "0123"},
+	"full":      {str: "01234567", out: "01234567"},
+	"wrapped":   {str: "0123456789", out: "23456789"},
+}
 
-	for name, tc := range tests {
+func TestRead(t *testing.T) {
+	for name, tc := range ReadbackTests {
 		rb := NewRingBuffer(RCap)
 		fmt.Fprint(rb, tc.str)
+		out, err := io.ReadAll(rb)
+		if err != nil {
+			t.Errorf("%s: read failed: %v", name, err)
+		}
+		outstr := string(out)
+		if outstr != tc.out {
+			t.Errorf("%s: expected to read '%s', got '%s'", name, tc.out, outstr)
+		}
+	}
+}
+
+func TestSeek(t *testing.T) {
+	for name, tc := range ReadbackTests {
+		rb := NewRingBuffer(RCap)
+		fmt.Fprint(rb, tc.str)
+		_, err := io.ReadAll(rb)
+
+		rb.Seek(0, io.SeekStart)
+
 		out, err := io.ReadAll(rb)
 		if err != nil {
 			t.Errorf("%s: read failed: %v", name, err)
