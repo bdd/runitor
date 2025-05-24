@@ -18,12 +18,14 @@ WORKTREE=$(git rev-parse --show-toplevel)/build/worktree/${RELEASE}
 git worktree remove ${WORKTREE}
 git worktree add ${WORKTREE} ${RELEASE}
 
-export WORKTREE
+GOTOOLCHAIN=go1.X.Y
+
+export WORKTREE GOTOOLCHAIN
 ./scripts/mkrel ${RELBUILD}
 
 # Cleanup
 git worktree remove $WORKTREE
-unset WORKTREE
+unset WORKTREE GOTOOLCHAIN
 ```
 
 Then we build and publish the OCI images:
