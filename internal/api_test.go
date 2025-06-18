@@ -144,9 +144,7 @@ func TestPostRetries(t *testing.T) {
 
 	rb := NewRingBuffer(100)
 	rb.Write(TestPingBody)
-	bodyBytes, _ := io.ReadAll(rb)
-	pingbody := bytes.NewReader(bodyBytes)
-	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, pingbody)
+	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, rb)
 	if err != nil {
 		t.Fatalf("expected successful Ping, got error: %+v", err)
 	}
@@ -390,10 +388,7 @@ func TestContentLengthForRingBufferBody(t *testing.T) {
 
 	rb := NewRingBuffer(100)
 	rb.Write(TestPingBody)
-	bodyBytes, _ := io.ReadAll(rb)
-	pingbody := bytes.NewReader(bodyBytes)
-
-	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, pingbody)
+	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, rb)
 	if err != nil {
 		t.Fatalf("ping failed: %+v", err)
 	}
@@ -430,10 +425,7 @@ func TestResubmitRingBufferBody(t *testing.T) {
 
 	rb := NewRingBuffer(100)
 	rb.Write(TestPingBody)
-	bodyBytes, _ := io.ReadAll(rb)
-	pingbody := bytes.NewReader(bodyBytes)
-
-	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, pingbody)
+	_, err := c.PingSuccess(TestHandle, TestPingParamsNone, rb)
 	if err != nil {
 		t.Fatalf("ping failed: %+v", err)
 	}
