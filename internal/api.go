@@ -149,13 +149,21 @@ func (c *APIClient) Post(url, contentType string, body io.ReadSeeker) (resp *htt
 		return nil, err
 	}
 
-	// net.http.NewRequestWithContext automatically sets the content-type
+	// net.http.NewRequestWithContext automatically sets the content-length
 	// header for *bytes.Buffer, *bytes.Reader, and *strings.Reader body
 	// types.
 	// We set it explicitly for RingBuffer bodies and avoid chunked
 	// transfer encoding.
 	if rb, ok := body.(*RingBuffer); ok {
 		req.ContentLength = int64(rb.Len())
+		if req.ContentLength == 0 {
+			req.Body = nil
+		} else {
+			req.GetBody = func() (io.ReadCloser, error) {
+				rb.Seek(0, io.SeekStart)
+				return io.NopCloser(rb), nil
+			}
+		}
 	}
 
 	if c.ReqHeaders != nil {
@@ -176,12 +184,15 @@ func (c *APIClient) Post(url, contentType string, body io.ReadSeeker) (resp *htt
 	}
 
 	var tries uint
-Try:
-	// Rewind
-	if body != nil {
-		body.Seek(0, io.SeekStart)
+	goto Try
+Retry:
+	if req.GetBody != nil {
+		req.Body, err = req.GetBody()
+		if err != nil {
+			return nil, fmt.Errorf("req.GetBody: %v", err)
+		}
 	}
-
+Try:
 	// Linear backoff at second granularity
 	time.Sleep(time.Duration(tries) * backoffStep)
 
@@ -195,7 +206,7 @@ Try:
 		// Retry timeout and temporary kind of errors
 		var uerr *urlpkg.Error
 		if errors.As(err, &uerr) && (uerr.Timeout() || uerr.Temporary()) {
-			goto Try
+			goto Retry
 		}
 
 		// non-recoverable
@@ -211,7 +222,7 @@ Try:
 		code := resp.StatusCode
 		text := http.StatusText(code)
 		err = fmt.Errorf("%d %s", code, text)
-		goto Try
+		goto Retry
 	default:
 		err = fmt.Errorf("%w: %s", ErrNonRetriable, resp.Status)
 		return
