@@ -8,18 +8,16 @@
   outputs =
     { self, nixpkgs }:
     let
-      supportedSystems = [
-        "x86_64-linux"
-        "aarch64-linux"
-        "x86_64-darwin"
-        "aarch64-darwin"
-      ];
+      inherit (nixpkgs.lib) mapCartesianProduct genAttrs;
 
-      forSupportedSystems =
-        f:
-        nixpkgs.lib.genAttrs supportedSystems (system: {
-          default = nixpkgs.legacyPackages.${system}.callPackage f { inherit self; };
-        });
+      supportedSystems = mapCartesianProduct ({ arch, os }: "${arch}-${os}") {
+        arch = [ "x86_64" "aarch64" ];
+        os = [ "linux" "darwin" ];
+      };
+
+      forSupportedSystems = pkg: genAttrs supportedSystems (system: {
+        default = nixpkgs.legacyPackages.${system}.callPackage pkg { inherit self; };
+      });
     in
     {
       devShells = forSupportedSystems (
