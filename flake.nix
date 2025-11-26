@@ -28,7 +28,7 @@
         pkgs.mkShell {
           buildInputs = with pkgs; [
             # build
-            go_1_24
+            go
 
             # release
             gh # create a release on github and upload artifacts
