@@ -39,5 +39,7 @@
       );
 
       packages = forSupportedSystems ./package.nix;
+
+      formatter = genAttrs supportedSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);
     };
 }
