@@ -84,6 +84,13 @@ in one process per container environments.
 		-every 2h24m -- \
 		/script/git-maint
 
+### Database Backup
+
+	# Run the backup script every day at 2 a.m and 2 p.m.
+	runitor -slug db-backup \
+		-at "00 02,14 * * *" -- \
+		/script/db-backup
+
 ### Backup
 
 	# Do not attach output to ping.
@@ -93,8 +100,8 @@ in one process per container environments.
 
 ### Triggering an Immediate Run in Periodic Mode
 
-When invoked with `-every <duration>` flag, runitor will also act as a basic
-task scheduler.
+When invoked with `-every <duration>` or `-at <cron>` flag, runitor will also
+act as a basic task scheduler.
 
 Sometimes you may not want to restart the process or the container just to force
 an immediate run. Instead, you can send SIGALRM to runitor to get it run the
@@ -114,6 +121,8 @@ command right away and reset the interval.
 	      Client timeout per request (default 5s)
 	-api-url string
 	      API URL (env: $HC_API_URL) (default "https://hc-ping.com")
+	-at string
+	      Cron expression to run command at specified time (e.g. "0 */3 * * *")
 	-create
 	      Create a new check if passed slug is not found in the project
 	-every duration
