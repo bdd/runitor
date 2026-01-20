@@ -154,6 +154,7 @@ func main() {
 	create := flag.Bool("create", false, "Create a new check if passed slug is not found in the project")
 	uuid := flag.String("uuid", "", "UUID of check (env: $CHECK_UUID). Use 'file:' prefix for indirection")
 	every := flag.Duration("every", 0, "If non-zero, periodically run command at specified interval")
+	at := flag.String("at", "", "Cron expression to run command at specified time (e.g. \"*/5 * * * *\")")
 	quiet := flag.Bool("quiet", false, "Don't capture command's stdout")
 	silent := flag.Bool("silent", false, "Don't capture command's stdout or stderr")
 	onSuccess := pingTypeFlag("on-success", PingTypeSuccess, "Ping type to send when command exits successfully")
@@ -182,6 +183,10 @@ func main() {
 	if *version {
 		fmt.Println(Name, releaseVersion())
 		os.Exit(0)
+	}
+
+	if *every != 0 && *at != "" {
+		log.Fatal("-every and -at flags are mutually exclusive")
 	}
 
 	ch := &handleParams{
@@ -265,23 +270,56 @@ func main() {
 	exitCode := task()
 
 	// One-shot mode. Exit with command's exit code.
-	if *every == 0 {
+	if *every == 0 && *at == "" {
 		os.Exit(exitCode)
 	}
 
-	// Task scheduler mode. Run the command periodically at specified interval.
-	ticker := time.NewTicker(*every)
 	runNow := make(chan os.Signal, 1)
 	signal.Notify(runNow, syscall.SIGALRM)
 
-	for {
-		select {
-		case <-ticker.C:
-			task()
+	// Task scheduler mode. Run the command periodically.
+	if *every != 0 {
+		ticker := time.NewTicker(*every)
+		for {
+			select {
+			case <-ticker.C:
+				task()
 
-		case <-runNow:
-			ticker.Reset(*every)
-			task()
+			case <-runNow:
+				ticker.Reset(*every)
+				task()
+			}
+		}
+	}
+
+	if *at != "" {
+		schedule, err := ParseCron(*at)
+		if err != nil {
+			log.Fatalf("invalid cron expression: %v", err)
+		}
+
+		for {
+			now := time.Now()
+			next := schedule.Next(now)
+			if next.IsZero() {
+				log.Fatal("no next execution time found")
+			}
+
+			// We sleep until the next scheduled time.
+			timer := time.NewTimer(time.Until(next))
+
+			select {
+			case <-timer.C:
+				task()
+			case <-runNow:
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				task()
+			}
 		}
 	}
 }
