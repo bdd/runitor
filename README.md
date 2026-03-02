@@ -151,6 +151,8 @@ command right away and reset the interval.
 	      Don't capture command's stdout or stderr
 	-slug string
 	      Slug of check (env: $CHECK_SLUG). Requires a ping key. Use 'file:' prefix for indirection
+	-timestamps
+	      Prepend timestamps to each command output line
 	-uuid string
 	      UUID of check (env: $CHECK_UUID). Use 'file:' prefix for indirection
 	-version

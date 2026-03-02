@@ -26,6 +26,7 @@ import (
 type RunConfig struct {
 	Quiet                   bool     // No cmd stdout
 	Silent                  bool     // No cmd stdout or stderr
+	Timestamps              bool     // Prepend timestamps to each command output line
 	NoStartPing             bool     // Don't send Start ping
 	NoOutputInPing          bool     // Don't send command std{out, err} with Success and Failure pings
 	NoRunId                 bool     // Don't generate and send a run id per run in pings
@@ -157,6 +158,7 @@ func main() {
 	at := flag.String("at", "", "Cron expression to run command at specified time (e.g. \"*/5 * * * *\")")
 	quiet := flag.Bool("quiet", false, "Don't capture command's stdout")
 	silent := flag.Bool("silent", false, "Don't capture command's stdout or stderr")
+	timestamps := flag.Bool("timestamps", false, "Prepend timestamps to each command output line")
 	onSuccess := pingTypeFlag("on-success", PingTypeSuccess, "Ping type to send when command exits successfully")
 	onNonzeroExit := pingTypeFlag("on-nonzero-exit", PingTypeExitCode, "Ping type to send when command exits with a nonzero code")
 	onExecFail := pingTypeFlag("on-exec-fail", PingTypeFail, "Ping type to send when runitor cannot execute the command")
@@ -251,6 +253,7 @@ func main() {
 	cfg := RunConfig{
 		Quiet:                   *quiet || *silent,
 		Silent:                  *silent,
+		Timestamps:              *timestamps,
 		NoStartPing:             *noStartPing,
 		NoOutputInPing:          *noOutputInPing,
 		NoRunId:                 *noRunId,
@@ -379,7 +382,12 @@ func Run(cmd []string, cfg RunConfig, handle string, p Pinger) int {
 	if cfg.NoOutputInPing {
 		mw = io.MultiWriter(os.Stdout)
 	} else {
-		mw = io.MultiWriter(os.Stdout, bw)
+		if cfg.Timestamps {
+			lw := NewTimestampLineWriter(bw)
+			mw = io.MultiWriter(os.Stdout, lw)
+		} else {
+			mw = io.MultiWriter(os.Stdout, bw)
+		}
 	}
 
 	// WARNING:
