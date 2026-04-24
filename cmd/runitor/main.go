@@ -163,6 +163,7 @@ func main() {
 	noStartPing := flag.Bool("no-start-ping", false, "Don't send start ping")
 	noOutputInPing := flag.Bool("no-output-in-ping", false, "Don't send command's output in pings")
 	noRunId := flag.Bool("no-run-id", false, "Don't generate and send a run id per run in pings")
+	pidfile := flag.String("pidfile", "", "Path to a PID file that prevents concurrent runitor instances from running simultaneously")
 	pingBodyLimit := flag.Uint("ping-body-limit", 10_000, "If non-zero, truncate the ping body to its last N bytes, including a truncation notice.")
 	version := flag.Bool("version", false, "Show version")
 
@@ -237,6 +238,24 @@ func main() {
 	retries := max(0, *apiRetries) // has to be >= 0
 
 	cmd := flag.Args()
+	// Acquire user-provided pidfile so concurrent invocations skip execution.
+	var pf *Pidfile
+	if *pidfile != "" {
+		pf, err = acquirePidfile(*pidfile)
+		if err != nil {
+			if errors.Is(err, errPidfileBusy) {
+				if pid := readPidfile(*pidfile); pid != 0 {
+					log.Printf("pidfile %s held by pid %d; exiting", *pidfile, pid)
+				} else {
+					log.Printf("pidfile %s held by another instance; exiting", *pidfile)
+				}
+				os.Exit(0)
+			}
+			log.Fatal(err)
+		}
+		setupSignalHandler(pf)
+	}
+
 	client := &APIClient{
 		BaseURL: *apiURL,
 		Retries: retries,
@@ -271,6 +290,7 @@ func main() {
 
 	// One-shot mode. Exit with command's exit code.
 	if *every == 0 && *at == "" {
+		pf.Release()
 		os.Exit(exitCode)
 	}
 

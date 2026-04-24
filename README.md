@@ -109,10 +109,34 @@ command right away and reset the interval.
 
 	pkill -ALRM runitor
 
+### Preventing Overlapping Runs
+
+Pass `-pidfile PATH` to prevent concurrent execution. At startup runitor
+takes an exclusive OS-level lock on the file, writes its PID into it, and
+holds both until it exits. If another live runitor already holds the file,
+the new invocation logs a message naming the holder's PID and exits with
+status 0 without pinging healthchecks.io or executing the command.
+
+	runitor -pidfile /tmp/backup.pid -slug backup -- ./nightly-backup.sh
+
+The path is chosen by the user. Two invocations sharing the same `-pidfile`
+are serialized regardless of what follows `--`, which is useful for commands
+whose argv varies between runs:
+
+	runitor -pidfile /tmp/tarsnap.pid -- tarsnap -f backup-$(date +%F_%H)
+
+A pidfile left behind by a crashed runitor is not a problem: the OS has
+already released the underlying lock, so the next runitor invocation
+re-acquires it and overwrites the stale PID.
+
+Combined with `-every` or `-at`, the pidfile is held for the entire lifetime
+of the runitor process, which lets external schedulers detect that runitor
+itself is already active.
+
 
 ## Usage
 
-	runitor [-uuid uuid] -- command
+	runitor [-uuid uuid] [-pidfile path] -- command
 
 ### Flags
 	-api-retries uint
@@ -141,6 +165,8 @@ command right away and reset the interval.
 	      Ping type to send when command exits successfully (exit-code|success|fail|log (default success))
 	-ping-body-limit uint
 	      If non-zero, truncate the ping body to its last N bytes, including a truncation notice. (default 10000)
+	-pidfile string
+	      Path to a PID file that prevents concurrent runitor instances from running simultaneously
 	-ping-key string
 	      Ping Key (env: $PING_KEY). Use 'file:' prefix for indirection
 	-quiet
