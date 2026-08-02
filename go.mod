@@ -1,6 +1,6 @@
 module bdd.fi/x/runitor
 
-go 1.24
+go 1.27rc2
 
 retract v1.1.0 // URI contruction bug affecting self hosted instances. GH #75.
 
