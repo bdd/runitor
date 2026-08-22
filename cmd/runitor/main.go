@@ -18,6 +18,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"uuid"
 
 	. "bdd.fi/x/runitor/internal" //lint:ignore ST1001 internal
 )
@@ -334,7 +335,7 @@ func Run(cmd []string, cfg RunConfig, handle string, p Pinger) int {
 	)
 
 	if !cfg.NoRunId {
-		params.RunId = NewUUID4()
+		params.RunId = uuid.NewV7().String()
 	}
 
 	if cfg.Create {
