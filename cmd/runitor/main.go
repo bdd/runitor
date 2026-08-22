@@ -267,11 +267,9 @@ func main() {
 		return Run(cmd, cfg, handle, client)
 	}
 
-	exitCode := task()
-
 	// One-shot mode. Exit with command's exit code.
 	if *every == 0 && *at == "" {
-		os.Exit(exitCode)
+		os.Exit(task())
 	}
 
 	runNow := make(chan os.Signal, 1)
@@ -279,6 +277,7 @@ func main() {
 
 	// Task scheduler mode. Run the command periodically.
 	if *every != 0 {
+		task()
 		ticker := time.NewTicker(*every)
 		for {
 			select {
