@@ -177,6 +177,14 @@ func (c *APIClient) Post(url, contentType string, body io.ReadSeeker) (resp *htt
 	var tries uint
 	goto Try
 Retry:
+	if tries > c.Retries {
+		err = fmt.Errorf("%w after try %d. last error: %v", ErrMaxTries, tries, err)
+		return
+	}
+	if resp != nil {
+		resp.Body.Close()
+		resp = nil
+	}
 	if req.GetBody != nil {
 		req.Body, err = req.GetBody()
 		if err != nil {
@@ -187,11 +195,7 @@ Try:
 	// Linear backoff at second granularity
 	time.Sleep(time.Duration(tries) * backoffStep)
 
-	if tries++; tries > 1+c.Retries {
-		err = fmt.Errorf("%w after try %d. last error: %v", ErrMaxTries, tries-1, err)
-		return
-	}
-
+	tries++
 	resp, err = c.Do(req)
 	if err != nil {
 		// Retry timeout and temporary kind of errors
@@ -273,11 +277,12 @@ func (c *APIClient) ping(handle string, params PingParams, typePath string, body
 	}
 
 	resp, err := c.Post(u.String(), "text/plain", body)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		return nil, err
 	}
-
-	defer resp.Body.Close()
 
 	icfg := &InstanceConfig{}
 	icfg.FromResponse(resp)

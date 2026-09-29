@@ -4,6 +4,7 @@ package internal_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,6 +31,102 @@ var (
 	TestPingParamsWithRIDCreate = PingParams{RunId: TestRunId, Create: true}
 	TestPingBody                = []byte("Test Ping Body")
 )
+
+type responseBody struct {
+	io.Reader
+	closes int
+}
+
+func (b *responseBody) Close() error {
+	b.closes++
+	return nil
+}
+
+type responseTransport func(*http.Request) (*http.Response, error)
+
+func (f responseTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestResponseBodies(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		statuses []int
+		wantErr  error
+	}{
+		{"success", []int{http.StatusOK}, nil},
+		{"created", []int{http.StatusCreated}, nil},
+		{"rejected", []int{http.StatusBadRequest}, ErrNonRetriable},
+		{"retried", []int{http.StatusServiceUnavailable, http.StatusOK}, nil},
+		{"exhausted", []int{http.StatusServiceUnavailable, http.StatusServiceUnavailable}, ErrMaxTries},
+		{"retry rejected", []int{http.StatusTooManyRequests, http.StatusBadRequest}, ErrNonRetriable},
+	}
+	for _, tt := range tests {
+		for _, method := range []string{"PingSuccess", "Post"} {
+			t.Run(tt.name+"/"+method, func(t *testing.T) {
+				t.Parallel()
+				var bodies []*responseBody
+				transport := responseTransport(func(req *http.Request) (*http.Response, error) {
+					for i, body := range bodies {
+						if body.closes != 1 {
+							t.Errorf("response %d closed %d times before retry, want 1", i, body.closes)
+						}
+					}
+					if len(bodies) >= len(tt.statuses) {
+						t.Fatal("unexpected extra request")
+					}
+					status := tt.statuses[len(bodies)]
+					body := &responseBody{Reader: strings.NewReader("response body")}
+					bodies = append(bodies, body)
+					return &http.Response{
+						StatusCode: status,
+						Status:     fmt.Sprintf("%d %s", status, http.StatusText(status)),
+						Header:     make(http.Header),
+						Body:       body,
+						Request:    req,
+					}, nil
+				})
+				c := &APIClient{
+					BaseURL: "https://example.com",
+					Client:  &http.Client{Transport: transport},
+					Retries: uint(len(tt.statuses) - 1),
+					Backoff: time.Nanosecond,
+				}
+				var err error
+				if method == "PingSuccess" {
+					_, err = c.PingSuccess(TestHandle, TestPingParamsNone, nil)
+				} else {
+					var resp *http.Response
+					resp, err = c.Post(c.BaseURL, "text/plain", nil)
+					if resp == nil {
+						t.Fatalf("Post returned no final response: %v", err)
+					}
+					if body := bodies[len(bodies)-1]; body.closes != 0 {
+						t.Errorf("Post closed the caller's response %d times", body.closes)
+					}
+					data, readErr := io.ReadAll(resp.Body)
+					if readErr != nil || string(data) != "response body" {
+						t.Errorf("final body = %q, error = %v", data, readErr)
+					}
+					resp.Body.Close()
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("error = %v, want %v", err, tt.wantErr)
+				}
+				if len(bodies) != len(tt.statuses) {
+					t.Errorf("requests = %d, want %d", len(bodies), len(tt.statuses))
+				}
+				for i, body := range bodies {
+					if body.closes != 1 {
+						t.Errorf("response %d closed %d times, want 1", i, body.closes)
+					}
+				}
+			})
+		}
+	}
+}
 
 // Tests if APIClient makes requests with the expected method, content-type,
 // and user-agent.
